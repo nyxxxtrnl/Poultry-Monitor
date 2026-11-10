@@ -5,7 +5,10 @@
 #include <Preferences.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
 #include <ArduinoJson.h>
+#include <string>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include <DHT.h>
@@ -61,6 +64,10 @@ const char* AP_PASSWORD = "PoultryMonitor123";
 
 WebServer server(80);
 
+static const char BLE_SERVICE_UUID[] = "a3c87500-8ed3-4bdf-8a39-a01bebede295";
+static const char BLE_STATUS_CHARACTERISTIC_UUID[] = "a3c87501-8ed3-4bdf-8a39-a01bebede295";
+BLECharacteristic* bleStatusCharacteristic = nullptr;
+
 static const char LETS_ENCRYPT_ROOT_CA[] PROGMEM = R"PEM(
 -----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -97,8 +104,10 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 
 const unsigned long CLOUD_UPLOAD_INTERVAL = 10000;
 const unsigned long WIFI_RETRY_INTERVAL = 30000;
+const unsigned long BLE_STATUS_UPDATE_INTERVAL = 1000;
 unsigned long lastCloudUpload = 0;
 unsigned long lastWifiAttempt = 0;
+unsigned long lastBleStatusUpdate = 0;
 
 // =====================================================
 // 3. SENSOR AND ALARM SETTINGS
@@ -1015,6 +1024,44 @@ void uploadReadingToCloud() {
   http.end();
 }
 
+void updateBleSensorStatus() {
+  if (bleStatusCharacteristic == nullptr) return;
+
+  DynamicJsonDocument doc(192);
+  doc["sensorOK"] = sensorOK;
+  if (sensorOK) {
+    doc["temperature"] = tempC;
+    doc["humidity"] = humidity;
+  } else {
+    doc["temperature"] = nullptr;
+    doc["humidity"] = nullptr;
+  }
+  doc["warning"] = alarmActive
+    ? "Temperature or humidity is above the configured limit."
+    : nullptr;
+
+  String payload;
+  serializeJson(doc, payload);
+  bleStatusCharacteristic->setValue(std::string(payload.c_str()));
+}
+
+void startBluetoothService() {
+  BLEDevice::init("PoultryMonitor");
+  BLEServer* bleServer = BLEDevice::createServer();
+  BLEService* service = bleServer->createService(BLE_SERVICE_UUID);
+  bleStatusCharacteristic = service->createCharacteristic(
+    BLE_STATUS_CHARACTERISTIC_UUID,
+    BLECharacteristic::PROPERTY_READ
+  );
+  service->start();
+
+  BLEAdvertising* advertising = BLEDevice::getAdvertising();
+  advertising->addServiceUUID(BLE_SERVICE_UUID);
+  advertising->setScanResponse(true);
+  BLEDevice::startAdvertising();
+  Serial.println("Bluetooth LE is advertising as PoultryMonitor.");
+}
+
 void handleDashboard() {
   server.send_P(200, "text/html; charset=utf-8", DASHBOARD_HTML);
 }
@@ -1173,11 +1220,13 @@ void setup() {
   server.begin();
 
   Serial.println("Web server started.");
+  startBluetoothService();
 
   // Initial sensor reading
   readSensor();
 
   updateAlarm();
+  updateBleSensorStatus();
 
   lastSensorRead = millis();
 
@@ -1216,6 +1265,10 @@ void loop() {
 
   // BUZZER AND LED CONTROL
   updateAlarm();
+  if (now - lastBleStatusUpdate >= BLE_STATUS_UPDATE_INTERVAL) {
+    lastBleStatusUpdate = now;
+    updateBleSensorStatus();
+  }
 
   // SAVE HISTORY
   if (now - lastHistorySave >= HISTORY_INTERVAL) {

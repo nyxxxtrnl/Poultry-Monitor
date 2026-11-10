@@ -11,6 +11,8 @@
   const REQUEST_TIMEOUT_MS = 5000;
   const DATA_STALE_MS = 10000;
   const MAX_CHART_RECORDS = 12;
+  const BLE_SERVICE_UUID = 'a3c87500-8ed3-4bdf-8a39-a01bebede295';
+  const BLE_STATUS_CHARACTERISTIC_UUID = 'a3c87501-8ed3-4bdf-8a39-a01bebede295';
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -59,6 +61,7 @@
     installMessage: $('#install-message'),
     saveButton: $('#save-button'),
     refreshButton: $('#refresh-button'),
+    bluetoothConnectButton: $('#bluetooth-connect-button'),
     pageTitle: $('#page-title'),
     headingSection: $('#heading-section'),
     statusDots: $$('.status-dot'),
@@ -91,6 +94,9 @@
     refreshing: false,
     refreshQueued: false,
     timer: null,
+    bluetoothDevice: null,
+    bluetoothCharacteristic: null,
+    connectionType: 'network',
   };
 
   let deferredInstallPrompt = null;
@@ -294,6 +300,7 @@
       element.textContent = value === 'online' ? 'Reachable' :
         value === 'error' ? 'Error' :
           value === 'checking' ? 'Checking…' :
+            value === 'not-available' ? 'Not available in Bluetooth mode' :
             value === 'not-checked' ? 'Not checked' : 'Waiting';
       element.dataset.level = value;
     };
@@ -388,7 +395,16 @@
       }
     });
 
+    elements.bluetoothConnectButton.textContent = state.connectionType === 'bluetooth' &&
+      state.bluetoothDevice?.gatt?.connected
+      ? 'Disconnect Bluetooth'
+      : 'Connect ESP32 via Bluetooth';
+    elements.bluetoothConnectButton.disabled = !navigator.bluetooth;
+    elements.bluetoothConnectButton.title = navigator.bluetooth
+      ? 'Connect directly to the ESP32 without Wi-Fi'
+      : 'Bluetooth connection requires Android Chrome over HTTPS';
     elements.stopWarningButton.hidden = !state.connected || !warning ||
+      state.connectionType === 'bluetooth' ||
       (window.location.protocol === 'https:' && Boolean(CLOUD_API_URL));
     elements.stopWarningButton.disabled = state.stoppingWarning || state.warningSilenced;
     elements.stopWarningButton.textContent = state.stoppingWarning
@@ -398,7 +414,7 @@
 
     if (!state.connected) {
       elements.connectionTitle.textContent = 'Monitor is offline';
-      elements.connectionMessage.textContent = 'Check that your phone is connected to the ESP32 Wi-Fi network.';
+      elements.connectionMessage.textContent = 'Tap “Connect ESP32 via Bluetooth” to connect directly without Wi-Fi.';
       elements.connectionState.textContent = 'OFFLINE';
       elements.sidebarStatus.textContent = 'Disconnected';
       elements.deviceHealthPill.textContent = 'OFFLINE';
@@ -423,9 +439,15 @@
       elements.sensorHealthIcon.style.background = 'rgba(var(--warning-rgb), .1)';
       elements.sensorHealthIcon.style.color = 'var(--warning)';
     } else {
-      elements.connectionTitle.textContent = 'Your monitor is connected';
-      elements.connectionMessage.textContent = 'The ESP32-S3 is reporting data from the DHT22 sensor.';
-      elements.connectionState.textContent = 'ALL SYSTEMS GO';
+      elements.connectionTitle.textContent = state.connectionType === 'bluetooth'
+        ? 'Connected to ESP32 via Bluetooth'
+        : 'Your monitor is connected';
+      elements.connectionMessage.textContent = state.connectionType === 'bluetooth'
+        ? 'Live DHT22 readings are coming directly from the monitor. Cloud history is not available in Bluetooth mode.'
+        : 'The ESP32-S3 is reporting data from the DHT22 sensor.';
+      elements.connectionState.textContent = state.connectionType === 'bluetooth'
+        ? 'BLUETOOTH'
+        : 'ALL SYSTEMS GO';
       elements.sensorHealthPill.textContent = 'HEALTHY';
       elements.sensorHealthPill.className = 'health-pill online';
       elements.sensorHealthIcon.style.background = 'rgba(var(--ok-rgb), .12)';
@@ -511,9 +533,12 @@
     elements.historyList.replaceChildren();
 
     if (state.history.length === 0) {
-      elements.recentList.innerHTML = '<div class="empty-state">No readings have been saved to the local SQL database yet.</div>';
-      elements.historyList.innerHTML = '<div class="empty-state">No readings have been saved to the local SQL database yet.</div>';
-      elements.historyChart.innerHTML = '<div class="chart-empty">The chart appears after sensor readings are saved in the local SQL database.</div>';
+      const emptyHistoryMessage = state.connectionType === 'bluetooth'
+        ? 'Bluetooth mode shows live readings only; history is not synced.'
+        : 'No readings have been saved to the local SQL database yet.';
+      elements.recentList.innerHTML = `<div class="empty-state">${emptyHistoryMessage}</div>`;
+      elements.historyList.innerHTML = `<div class="empty-state">${emptyHistoryMessage}</div>`;
+      elements.historyChart.innerHTML = `<div class="chart-empty">${emptyHistoryMessage}</div>`;
       elements.recordCount.innerHTML = '0 <small>records</small>';
       return;
     }
@@ -603,7 +628,8 @@
   }
 
   async function stopHardwareWarning() {
-    if (state.stoppingWarning || state.warningSilenced || !state.connected || !getActiveWarning()) {
+    if (state.connectionType === 'bluetooth' || state.stoppingWarning ||
+        state.warningSilenced || !state.connected || !getActiveWarning()) {
       return;
     }
 
@@ -635,7 +661,153 @@
     }
   }
 
+  function applySensorStatus(status) {
+    const hasValidReadings = typeof status?.temperature === 'number' &&
+      Number.isFinite(status.temperature) &&
+      typeof status?.humidity === 'number' &&
+      Number.isFinite(status.humidity);
+    const hasUnavailableReadings = status?.sensorOK === false &&
+      status.temperature === null && status.humidity === null;
+    if (!status || typeof status !== 'object' ||
+        (!hasValidReadings && !hasUnavailableReadings)) {
+      throw new Error('The ESP32 returned an invalid sensor status response.');
+    }
+
+    const previousWarningKey = state.activeWarningKey;
+    state.temperature = hasValidReadings ? status.temperature : null;
+    state.humidity = hasValidReadings ? status.humidity : null;
+    state.sensorOK = status.sensorOK === true;
+    if (typeof status.warning === 'string') {
+      state.warning = status.warning.trim();
+    } else if (status.warning === true) {
+      state.warning = 'The hardware has reported a warning.';
+    } else if (status.warning === false || status.warning == null) {
+      state.warning = '';
+    } else {
+      throw new Error('The ESP32 returned an invalid hardware warning value.');
+    }
+    const activeWarning = getActiveWarning();
+    if (activeWarning !== previousWarningKey) {
+      state.warningSilenced = false;
+      state.warningActionMessage = '';
+      state.activeWarningKey = activeWarning;
+      if (activeWarning) vibrateForWarning();
+    }
+    state.connected = true;
+    state.lastUpdated = new Date();
+    state.statusApiState = 'online';
+    renderStatus();
+    renderReadings();
+  }
+
+  async function connectBluetooth() {
+    if (!navigator.bluetooth) {
+      showMessage('Bluetooth is not available here. Open this page in Android Chrome over HTTPS.', 'error');
+      return;
+    }
+
+    if (state.bluetoothDevice?.gatt?.connected) {
+      state.bluetoothDevice.gatt.disconnect();
+      return;
+    }
+
+    elements.bluetoothConnectButton.disabled = true;
+    elements.bluetoothConnectButton.textContent = 'Connecting…';
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: 'PoultryMonitor' }],
+        optionalServices: [BLE_SERVICE_UUID],
+      });
+      device.addEventListener('gattserverdisconnected', () => {
+        if (state.bluetoothDevice !== device) return;
+        state.bluetoothDevice = null;
+        state.bluetoothCharacteristic = null;
+        state.connectionType = 'network';
+        state.connected = false;
+        state.sensorOK = false;
+        state.statusApiState = 'error';
+        state.historyApiState = 'waiting';
+        state.lastError = 'Bluetooth connection to the ESP32 was lost.';
+        renderStatus();
+        renderDiagnostics();
+      }, { once: true });
+
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+      state.bluetoothCharacteristic = await service.getCharacteristic(
+        BLE_STATUS_CHARACTERISTIC_UUID,
+      );
+      state.bluetoothDevice = device;
+      state.connectionType = 'bluetooth';
+      state.history = [];
+      state.historyApiState = 'not-available';
+      state.lastError = '';
+      renderHistory();
+      await refreshData();
+    } catch (error) {
+      console.error('Could not connect to the ESP32 over Bluetooth:', error);
+      const message = error?.name === 'NotFoundError'
+        ? 'Bluetooth device selection was cancelled or the monitor was not found.'
+        : error instanceof Error ? error.message : 'Could not connect to the ESP32 over Bluetooth.';
+      state.lastError = message;
+      state.statusApiState = 'error';
+      state.historyApiState = 'not-available';
+      elements.connectionMessage.textContent = message;
+      renderDiagnostics();
+    } finally {
+      elements.bluetoothConnectButton.disabled = !navigator.bluetooth;
+      renderStatus();
+    }
+  }
+
+  async function refreshBluetoothData() {
+    if (!state.bluetoothCharacteristic) return;
+    if (state.refreshing) {
+      state.refreshQueued = true;
+      return;
+    }
+    state.refreshing = true;
+    elements.refreshButton.classList.add('busy');
+    elements.refreshButton.disabled = true;
+    state.lastAttemptAt = new Date();
+    state.statusApiState = 'checking';
+    state.historyApiState = 'not-available';
+    state.lastError = '';
+    renderDiagnostics();
+    try {
+      const value = await state.bluetoothCharacteristic.readValue();
+      const status = JSON.parse(new TextDecoder().decode(value));
+      applySensorStatus(status);
+    } catch (error) {
+      console.error('Could not read sensor status over Bluetooth:', error);
+      state.connected = false;
+      state.sensorOK = false;
+      state.statusApiState = 'error';
+      state.lastError = error instanceof Error
+        ? `Bluetooth status: ${error.message}`
+        : 'Could not read sensor status over Bluetooth.';
+      elements.connectionMessage.textContent = state.lastError;
+      renderStatus();
+      renderReadings();
+    } finally {
+      renderHistory();
+      renderDiagnostics();
+      state.refreshing = false;
+      elements.refreshButton.classList.remove('busy');
+      elements.refreshButton.disabled = false;
+      if (state.refreshQueued) {
+        state.refreshQueued = false;
+        window.setTimeout(refreshData, 0);
+      }
+    }
+  }
+
   async function refreshData() {
+    if (state.bluetoothCharacteristic) {
+      await refreshBluetoothData();
+      return;
+    }
+
     if (state.refreshing) {
       state.refreshQueued = true;
       return;
@@ -668,43 +840,8 @@
     const errors = [];
     try {
       const status = await requestJson('/api/status', requestedUrl);
-      const hasValidReadings = typeof status?.temperature === 'number' &&
-        Number.isFinite(status.temperature) &&
-        typeof status?.humidity === 'number' &&
-        Number.isFinite(status.humidity);
-      const hasUnavailableReadings = status?.sensorOK === false &&
-        status.temperature === null && status.humidity === null;
-      if (!status || typeof status !== 'object' ||
-          (!hasValidReadings && !hasUnavailableReadings)) {
-        throw new Error('The ESP32 returned an invalid sensor status response.');
-      }
-
       if (requestedUrl !== state.deviceUrl) return;
-      const previousWarningKey = state.activeWarningKey;
-      state.temperature = hasValidReadings ? status.temperature : null;
-      state.humidity = hasValidReadings ? status.humidity : null;
-      state.sensorOK = status.sensorOK === true;
-      if (typeof status.warning === 'string') {
-        state.warning = status.warning.trim();
-      } else if (status.warning === true) {
-        state.warning = 'The hardware has reported a warning.';
-      } else if (status.warning === false || status.warning == null) {
-        state.warning = '';
-      } else {
-        throw new Error('The ESP32 returned an invalid hardware warning value.');
-      }
-      const activeWarning = getActiveWarning();
-      if (activeWarning !== previousWarningKey) {
-        state.warningSilenced = false;
-        state.warningActionMessage = '';
-        state.activeWarningKey = activeWarning;
-        if (activeWarning) vibrateForWarning();
-      }
-      state.connected = true;
-      state.lastUpdated = new Date();
-      state.statusApiState = 'online';
-      renderStatus();
-      renderReadings();
+      applySensorStatus(status);
     } catch (error) {
       console.error('Could not load sensor status:', error);
       if (requestedUrl === state.deviceUrl) {
@@ -805,6 +942,7 @@
       });
     });
     elements.refreshButton.addEventListener('click', refreshData);
+    elements.bluetoothConnectButton.addEventListener('click', connectBluetooth);
     elements.stopWarningButton.addEventListener('click', stopHardwareWarning);
     elements.settingsForm.addEventListener('submit', saveDeviceAddress);
     elements.darkModeToggle.addEventListener('change', saveThemePreference);

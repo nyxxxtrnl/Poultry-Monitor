@@ -8,6 +8,7 @@ selected theme saved in the browser.
 ## Features
 
 - Live temperature, relative humidity, and ESP32/DHT22 status
+- Direct live readings from the ESP32-S3 over Bluetooth Low Energy
 - Automatic refresh every three seconds and manual refresh
 - Persistent sensor history stored in a local SQLite SQL database
 - History list and a temperature chart with local received-at timestamps
@@ -62,12 +63,12 @@ local server, then open **Settings → Install app**. Chrome and Edge show the
 native install prompt when available; the browser menu also has an **Install
 app** option. On iPhone or iPad, open the site in Safari, tap **Share**, then
 choose **Add to Home Screen**. The first visit needs an internet connection to
-download the app shell. Its dashboard files can then open offline, but live
-sensor readings and local SQL history still need the ESP32 and local server.
+download the app shell. Its dashboard files can then open offline. Bluetooth
+live readings need the ESP32 and Android Chrome; local SQL history still needs
+the ESP32 and local server.
 
-The public GitHub Pages copy can show live readings after the public cloud API
-is configured below. Until then, install the local server URL or open the
-dashboard served directly by the ESP32 for local monitoring.
+The public GitHub Pages copy can show live readings through Bluetooth or the
+public cloud API configured below. Use Android Chrome over HTTPS for Bluetooth.
 
 ## Open on a phone
 
@@ -152,10 +153,26 @@ internet to the phone; the local dashboard at `http://192.168.4.1/` continues
 to work on that Wi-Fi without cloud access. Remote alarm control is not
 available from the public cloud dashboard.
 
+## Live readings over Bluetooth
+
+The ESP32-S3 firmware also advertises a Bluetooth Low Energy (BLE) service.
+On an Android phone, open the GitHub Pages dashboard in Chrome over HTTPS, tap
+**Connect ESP32 via Bluetooth**, and choose **PoultryMonitor**. Chrome reads the
+live sensor status directly from the ESP32 every three seconds. The phone can
+keep mobile data enabled while its Wi-Fi and hotspot are off; Bluetooth mode
+does not require the phone to join an ESP32 or router Wi-Fi network.
+
+Bluetooth mode provides live readings only. It does not upload to Supabase or
+save cloud history while the ESP32 has no internet connection. If the page was
+not installed or cached already, mobile data is needed to load GitHub Pages.
+Use Android Chrome over HTTPS; the browser-hosted Bluetooth connection is not
+available from the ESP32's plain-HTTP dashboard or Safari on iPhone.
+
 Until the migration and Edge Function are deployed and the device token and
-router Wi-Fi settings are configured, public live readings will not be
-available. Do not put database service-role keys, router Wi-Fi passwords, or
-device tokens in this public repository.
+router Wi-Fi settings are configured, public cloud readings will not be
+available. Bluetooth live readings do not depend on those cloud settings. Do not
+put database service-role keys, router Wi-Fi passwords, or device tokens in this
+public repository.
 
 ## API format
 
