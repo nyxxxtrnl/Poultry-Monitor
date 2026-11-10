@@ -116,10 +116,10 @@
         </section>
 
         <section class="page-panel" id="page-history" data-page-panel="history" hidden>
-          <div class="section-intro history-heading"><div><p class="eyebrow">SAVED ON YOUR ESP32</p><h2>Sensor history</h2><p class="section-description">Past readings returned by the monitor. Times are device uptime, not calendar timestamps.</p></div><span class="record-count" id="record-count">0 <small>records</small></span></div>
-          <article class="panel chart-panel"><div class="panel-heading"><div><p class="eyebrow">TEMPERATURE SNAPSHOT</p><h3>Recent temperature trend</h3></div><span class="chart-unit">°C</span></div><div class="bar-chart" id="history-chart"><div class="chart-empty">History appears here once the ESP32 returns stored readings.</div></div><div class="chart-legend"><span><i></i>Temperature</span><span>Latest device records</span></div></article>
+          <div class="section-intro history-heading"><div><p class="eyebrow">SAVED IN LOCAL SQL</p><h2>Sensor history</h2><p class="section-description">Readings saved by the local dashboard server, with the time they were received.</p></div><span class="record-count" id="record-count">0 <small>records</small></span></div>
+          <article class="panel chart-panel"><div class="panel-heading"><div><p class="eyebrow">TEMPERATURE SNAPSHOT</p><h3>Recent temperature trend</h3></div><span class="chart-unit">°C</span></div><div class="bar-chart" id="history-chart"><div class="chart-empty">The chart appears after sensor readings are saved in the local SQL database.</div></div><div class="chart-legend"><span><i></i>Temperature</span><span>Latest SQL records</span></div></article>
           <article class="panel history-panel"><div class="panel-heading"><div><p class="eyebrow">ALL READINGS</p><h3>History log</h3></div><span class="table-refresh">Updates with sensor refresh</span></div><div class="history-list" id="history-list"><div class="empty-state">No history records available.</div></div></article>
-          <div class="history-disclaimer"><span class="note-mark">i</span> Device uptime resets when the ESP32 restarts; it is not the time or date a reading was taken.</div>
+          <div class="history-disclaimer"><span class="note-mark">i</span> Records are stored on the computer running this dashboard server. They are separate from the ESP32’s own history.</div>
         </section>
 
         <section class="page-panel settings-panel" id="page-settings" data-page-panel="settings" hidden>
@@ -131,14 +131,14 @@
             <div class="panel-heading"><div><p class="eyebrow">LIVE CHECK</p><h3>Connection diagnostics</h3></div><span class="diagnostics-updated" id="diagnostic-attempt">Not checked yet</span></div>
             <dl class="diagnostics-list">
               <div><dt>ESP32 status endpoint</dt><dd id="diagnostic-status-api">Waiting</dd></div>
-              <div><dt>Reading history endpoint</dt><dd id="diagnostic-history-api">Waiting</dd></div>
+              <div><dt>Local SQL history endpoint</dt><dd id="diagnostic-history-api">Waiting</dd></div>
               <div><dt>Last successful reading</dt><dd id="diagnostic-last-reading">No reading received yet</dd></div>
               <div class="diagnostic-error-row" id="diagnostic-error-row" hidden><dt>Latest issue</dt><dd id="diagnostic-error"></dd></div>
             </dl>
-            <p class="diagnostics-help">If the ESP32 is offline, join its Wi-Fi network and confirm the address above. When running this dashboard with <code>node server.js</code>, the server proxies the default <code>192.168.4.1</code> address.</p>
+            <p class="diagnostics-help">If the ESP32 is offline, join its Wi-Fi network and confirm the address above. When running this dashboard with <code>node server.js</code>, the server saves each successful reading to the local SQLite database.</p>
           </article>
-          <article class="panel instructions-card"><div class="panel-heading"><div><p class="eyebrow">GETTING CONNECTED</p><h3>Use the local network</h3></div></div><ol class="setup-steps"><li><span>01</span><div><strong>Join the ESP32 Wi-Fi</strong><p>Connect your phone to <b>PoultryMonitor</b> in Wi-Fi settings.</p></div></li><li><span>02</span><div><strong>Open this dashboard from the ESP32</strong><p>For browser access, the dashboard files should be served by the ESP32 at <code>192.168.4.1</code>. This keeps API requests on the same origin.</p></div></li><li><span>03</span><div><strong>Check your connection</strong><p>The app reads <code>/api/status</code> and <code>/api/history</code> every three seconds.</p></div></li></ol></article>
-          <article class="panel limitation-card"><span class="note-mark">i</span><div><h3>Monitoring & alarm acknowledgement</h3><p>The dashboard monitors conditions and can silence the hardware warning alarm. It does not control fans, heaters, or other poultry-house equipment. If you host this page on a different address, the ESP32 must allow browser CORS requests.</p></div></article>
+          <article class="panel instructions-card"><div class="panel-heading"><div><p class="eyebrow">GETTING CONNECTED</p><h3>Use the local network</h3></div></div><ol class="setup-steps"><li><span>01</span><div><strong>Join the ESP32 Wi-Fi</strong><p>Connect your phone to <b>PoultryMonitor</b> in Wi-Fi settings.</p></div></li><li><span>02</span><div><strong>Run the dashboard server</strong><p>Start <code>node server.js</code> on this computer and open its local network address on the phone.</p></div></li><li><span>03</span><div><strong>Readings are saved locally</strong><p>The server polls <code>/api/status</code> and stores readings in SQLite. The dashboard reads history from <code>/api/history</code>.</p></div></li></ol></article>
+          <article class="panel limitation-card"><span class="note-mark">i</span><div><h3>Local SQL, not public cloud</h3><p>SQLite history stays on the computer running this server. GitHub Pages cannot connect directly to your local SQL database or the ESP32’s private Wi-Fi address. Public live data requires a separately hosted API and database.</p></div></article>
         </section>
 
         <nav class="mobile-nav" aria-label="Main navigation">

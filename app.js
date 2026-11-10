@@ -166,6 +166,19 @@
     return days > 0 ? `Uptime ${days}d ${time}` : `Uptime ${time}`;
   }
 
+  function formatHistoryTimestamp(record) {
+    if (record.recordedAt) {
+      return `Recorded ${new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }).format(new Date(record.recordedAt))}`;
+    }
+    return formatUptime(record.elapsedMs);
+  }
+
   function formatUpdatedAt(date) {
     if (!(date instanceof Date)) return 'Waiting for readings';
     const formatted = new Intl.DateTimeFormat(undefined, {
@@ -347,7 +360,7 @@
 
     const time = document.createElement('span');
     time.className = compact ? 'recent-time' : 'history-time';
-    time.textContent = formatUptime(record.elapsedMs);
+    time.textContent = formatHistoryTimestamp(record);
     container.append(time);
     return container;
   }
@@ -364,6 +377,10 @@
       elapsedMs: typeof record.elapsedMs === 'number' && Number.isFinite(record.elapsedMs)
         ? record.elapsedMs
         : null,
+      recordedAt: typeof record.recordedAt === 'string' &&
+          Number.isFinite(Date.parse(record.recordedAt))
+        ? record.recordedAt
+        : null,
     };
   }
 
@@ -372,9 +389,9 @@
     elements.historyList.replaceChildren();
 
     if (state.history.length === 0) {
-      elements.recentList.innerHTML = '<div class="empty-state">No history records available from the monitor.</div>';
-      elements.historyList.innerHTML = '<div class="empty-state">No history records available from the monitor.</div>';
-      elements.historyChart.innerHTML = '<div class="chart-empty">History appears here once the ESP32 returns stored readings.</div>';
+      elements.recentList.innerHTML = '<div class="empty-state">No readings have been saved to the local SQL database yet.</div>';
+      elements.historyList.innerHTML = '<div class="empty-state">No readings have been saved to the local SQL database yet.</div>';
+      elements.historyChart.innerHTML = '<div class="chart-empty">The chart appears after sensor readings are saved in the local SQL database.</div>';
       elements.recordCount.innerHTML = '0 <small>records</small>';
       return;
     }
@@ -591,9 +608,9 @@
           console.error('Could not load sensor history:', error);
           state.historyApiState = 'error';
           errors.push(`History endpoint: ${describeConnectionError(error)}`);
-          elements.recentList.innerHTML = '<div class="empty-state">History is temporarily unavailable. Check the ESP32 history endpoint.</div>';
-          elements.historyList.innerHTML = '<div class="empty-state">History is temporarily unavailable. Check the ESP32 history endpoint.</div>';
-          elements.historyChart.innerHTML = '<div class="chart-empty">Could not load the history chart.</div>';
+          elements.recentList.innerHTML = '<div class="empty-state">SQL history is temporarily unavailable. The live readings are still updating.</div>';
+          elements.historyList.innerHTML = '<div class="empty-state">Could not load history from the local SQL database.</div>';
+          elements.historyChart.innerHTML = '<div class="chart-empty">Could not load SQL history.</div>';
         }
         state.lastError = errors.join(' ');
         renderDiagnostics();
