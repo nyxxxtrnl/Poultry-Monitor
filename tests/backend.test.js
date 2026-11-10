@@ -107,6 +107,16 @@ test('backend APIs validate status, persist history, and protect static files', 
   assert.equal(health.status, 200);
   assert.deepEqual(JSON.parse(health.body), { status: 'ok', database: 'ok' });
 
+  statusBody = '{"temperature": null, "humidity": null, "sensorOK": false}';
+  const unavailableSensor = await request(port, '/api/status');
+  assert.equal(unavailableSensor.status, 200);
+  assert.deepEqual(JSON.parse(unavailableSensor.body), {
+    temperature: null,
+    humidity: null,
+    sensorOK: false,
+  });
+  assert.deepEqual(JSON.parse((await request(port, '/api/history')).body), { history: [] });
+
   statusBody = '{"temperature": "hot", "humidity": 67.2}';
   const invalidStatus = await request(port, '/api/status');
   assert.equal(invalidStatus.status, 502);
@@ -148,6 +158,9 @@ test('backend APIs validate status, persist history, and protect static files', 
   const workerResponse = await request(port, '/service-worker.js');
   assert.equal(workerResponse.status, 200);
   assert.match(workerResponse.headers['content-type'], /text\/javascript/);
+  const cloudConfigResponse = await request(port, '/cloud-config.js');
+  assert.equal(cloudConfigResponse.status, 200);
+  assert.match(cloudConfigResponse.headers['content-type'], /text\/javascript/);
   for (const iconName of ['app-icon-192.png', 'app-icon-512.png']) {
     const iconResponse = await request(port, `/${iconName}`);
     assert.equal(iconResponse.status, 200);

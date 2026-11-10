@@ -52,7 +52,8 @@ npm start
 Check that the server and its SQLite database are available at
 `http://localhost:8080/api/health`. Run the backend integration tests with
 `npm test`. The server only publishes the dashboard, install manifest, service
-worker, and app icons; other files in the project directory are not served.
+worker, cloud API configuration, and app icons; other files in the project
+directory are not served.
 
 ## Install the app on a phone or computer
 
@@ -64,9 +65,9 @@ choose **Add to Home Screen**. The first visit needs an internet connection to
 download the app shell. Its dashboard files can then open offline, but live
 sensor readings and local SQL history still need the ESP32 and local server.
 
-The public GitHub Pages copy can be installed as an app, but it cannot connect
-to the ESP32 or read SQLite stored on another computer. Install the local
-server URL instead when you need live monitoring.
+The public GitHub Pages copy can show live readings after the public cloud API
+is configured below. Until then, install the local server URL or open the
+dashboard served directly by the ESP32 for local monitoring.
 
 ## Open on a phone
 
@@ -76,10 +77,15 @@ Connect both the computer running the server and the phone to the
 `http://192.168.4.2:8080`). If Windows Firewall prompts, allow Node.js on the
 private network. Stop the local server with Ctrl+C when finished.
 
-Alternatively, serve these files from the ESP32 itself and open
-`http://192.168.4.1/`; same-origin API requests then work without the Node.js
-proxy. The current workspace does not include ESP32 firmware or a filesystem
-upload setup, so static-file hosting on the ESP32 must be added separately.
+Alternatively, the updated local ESP32-S3 sketch serves the dashboard and its
+assets directly from flash. Open `C:\Arduino\sketch_oct26a\sketch_oct26a.ino`
+in Arduino IDE, choose the same ESP32-S3 board and port used for the monitor,
+then click **Upload**. Keep `dashboard_assets.h` and `wifi_secrets.h` in the
+sketch folder. After upload, connect the phone to `PoultryMonitor` and open
+`http://192.168.4.1/`; the page uses the ESP32's same-origin live API and does
+not require the Node.js server. The sketch and embedded assets are local, not
+part of this GitHub repository. Do not publish the sketch or
+`wifi_secrets.h` with private Wi-Fi credentials.
 
 SQLite history belongs to the computer running `node server.js`. It is not
 shared with a different computer or saved on GitHub Pages. While the ESP32 is
@@ -95,14 +101,58 @@ Actions to deploy Pages (Repository **Settings → Pages → Build and deploymen
 Source: GitHub Actions**). After the workflow succeeds, this public link opens
 the installable dashboard UI on a phone.
 
-**GitHub Pages does not make the current ESP32 readings public.** Pages is
-served over HTTPS, and mobile browsers block it from fetching the ESP32's local
-HTTP address. Live readings on the public page require an internet-connected
-ESP32 firmware and a public HTTPS API/database. Do not put database service-role
-keys, Wi-Fi passwords, or other private credentials in this public repository.
-The static GitHub Pages site cannot reach this computer's SQLite file. Use the
-local Node.js server or serve the dashboard directly from the ESP32 to see live
-sensor data and local SQL history.
+GitHub Pages is static HTTPS hosting; it cannot reach the ESP32's local HTTP
+address or this computer's SQLite database. The Supabase integration in
+`supabase/` provides a public HTTPS read API and a token-protected sensor
+ingest endpoint. The dashboard is configured for the Supabase project URL
+provided for this setup. To activate the API:
+
+1. In that Supabase project's SQL Editor, run the SQL in
+   `supabase/migrations/20261110000000_create_sensor_readings.sql`, or link
+   the project and run `supabase db push`.
+2. Deploy the Edge Function with the Supabase CLI:
+
+   ```powershell
+   supabase link --project-ref nwdnkasjrucrpysbjbcc
+   supabase functions deploy poultry-monitor
+   ```
+
+3. Generate a 32-byte device token locally in PowerShell:
+
+   ```powershell
+   $bytes = New-Object byte[] 32
+   $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+   $rng.GetBytes($bytes)
+   $token = ($bytes | ForEach-Object { $_.ToString('x2') }) -join ''
+   ```
+
+   Configure the token as the Supabase function secret named
+   `DEVICE_INGEST_TOKEN` (Supabase Dashboard → Edge Functions → Secrets).
+   Keep the token private; do not paste it into chat or commit it.
+4. The public API URL is already set in `cloud-config.js` and the local ESP32
+   secrets template. It is public configuration, not a secret.
+5. In the local, untracked
+   `C:\Arduino\sketch_oct26a\wifi_secrets.h`, set the router Wi-Fi name and
+   password and set `DEVICE_INGEST_TOKEN` to the same token configured in
+   Supabase. Do not commit or share this file. The firmware keeps the
+   `PoultryMonitor` access point active while connecting to the router to
+   upload sensor readings every 10 seconds over verified HTTPS.
+6. Compile and upload the sketch to the ESP32-S3. Push the updated dashboard
+   configuration to `main` and wait for the Pages deployment to succeed.
+
+The GitHub Pages dashboard reads the latest public status and up to 500 public
+history records from the Edge Function. Only sensor measurements, warning
+state, and timestamps are exposed; the database service-role key stays on
+Supabase. The phone needs its own internet connection to open GitHub Pages and
+the public API. Connecting to the ESP32 access point alone does not provide
+internet to the phone; the local dashboard at `http://192.168.4.1/` continues
+to work on that Wi-Fi without cloud access. Remote alarm control is not
+available from the public cloud dashboard.
+
+Until the migration and Edge Function are deployed and the device token and
+router Wi-Fi settings are configured, public live readings will not be
+available. Do not put database service-role keys, router Wi-Fi passwords, or
+device tokens in this public repository.
 
 ## API format
 
@@ -116,6 +166,10 @@ sensor data and local SQL history.
   "warning": null
 }
 ```
+
+When `sensorOK` is `false`, the ESP32 may return `null` for both measurements;
+the dashboard then reports the sensor warning without presenting invalid
+readings.
 
 The optional `warning` field mirrors an alert raised by the hardware. Set it
 to a human-readable string to show that warning in the dashboard, or to `true`
@@ -157,10 +211,12 @@ failed rather than pretending the hardware alarm was stopped.
 }
 ```
 
-The ESP32 only needs to provide `GET /api/status`; each successful status
-response is saved locally in SQLite. The dashboard server supplies
-`GET /api/history` from its SQL database, so ESP32 firmware does not need a
-history endpoint for the local dashboard.
+The Node.js dashboard only requires ESP32 `GET /api/status`; successful
+readings are saved locally in SQLite, and the Node.js server supplies its own
+`GET /api/history`. When the dashboard is served directly from the ESP32, the
+firmware also supplies `GET /api/history` in the same `{ "history": [...] }`
+shape; those device records use `elapsedMs` to show uptime rather than a
+calendar date.
 
 `recordedAt` is the computer/server's receipt time. If an older ESP32 history
 record provides `elapsedMs` instead, the dashboard displays it as device

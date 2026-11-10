@@ -2,6 +2,9 @@
   'use strict';
 
   const DEFAULT_DEVICE_URL = 'http://192.168.4.1';
+  const CLOUD_API_URL = typeof window.POULTRY_CLOUD_API_URL === 'string'
+    ? window.POULTRY_CLOUD_API_URL.trim().replace(/\/+$/, '')
+    : '';
   const STORAGE_KEY = 'poultry-monitor-device-url';
   const THEME_STORAGE_KEY = 'poultry-monitor-theme';
   const REFRESH_INTERVAL_MS = 3000;
@@ -312,6 +315,13 @@
   }
 
   function getApiRequestUrl(path, baseUrl) {
+    if (window.location.protocol === 'https:' && CLOUD_API_URL) {
+      const route = path === '/api/status' ? '/status' :
+        path === '/api/history' ? '/history' :
+          path === '/api/warning/stop' ? '/warning/stop' : path;
+      return `${CLOUD_API_URL}${route}`;
+    }
+
     const isEsp32Dashboard =
       window.location.protocol === 'http:' &&
       window.location.hostname === '192.168.4.1' &&
@@ -325,6 +335,20 @@
   }
 
   function getHttpsHttpMismatchMessage(baseUrl) {
+    if (window.location.protocol === 'https:' && !CLOUD_API_URL) {
+      return 'Public live readings are not configured yet. Set the Supabase HTTPS API URL in cloud-config.js and connect the ESP32 to internet-capable Wi-Fi.';
+    }
+    if (window.location.protocol === 'https:' && CLOUD_API_URL) {
+      try {
+        const cloudUrl = new URL(CLOUD_API_URL);
+        if (cloudUrl.protocol !== 'https:' || cloudUrl.username || cloudUrl.password ||
+            cloudUrl.search || cloudUrl.hash) {
+          return 'The public sensor API must be a valid HTTPS Supabase Edge Function URL.';
+        }
+      } catch (_) {
+        return 'The public sensor API URL in cloud-config.js is invalid.';
+      }
+    }
     try {
       if (window.location.protocol === 'https:' && new URL(baseUrl).protocol === 'http:') {
         return 'GitHub Pages is served over HTTPS, so browsers block direct requests to the ESP32 local HTTP address. Live readings need a public HTTPS API and ESP32 firmware that sends data to it.';
@@ -363,7 +387,8 @@
       }
     });
 
-    elements.stopWarningButton.hidden = !state.connected || !warning;
+    elements.stopWarningButton.hidden = !state.connected || !warning ||
+      (window.location.protocol === 'https:' && Boolean(CLOUD_API_URL));
     elements.stopWarningButton.disabled = state.stoppingWarning || state.warningSilenced;
     elements.stopWarningButton.textContent = state.stoppingWarning
       ? 'Stopping…'
@@ -642,16 +667,21 @@
     const errors = [];
     try {
       const status = await requestJson('/api/status', requestedUrl);
+      const hasValidReadings = typeof status?.temperature === 'number' &&
+        Number.isFinite(status.temperature) &&
+        typeof status?.humidity === 'number' &&
+        Number.isFinite(status.humidity);
+      const hasUnavailableReadings = status?.sensorOK === false &&
+        status.temperature === null && status.humidity === null;
       if (!status || typeof status !== 'object' ||
-          typeof status.temperature !== 'number' || !Number.isFinite(status.temperature) ||
-          typeof status.humidity !== 'number' || !Number.isFinite(status.humidity)) {
+          (!hasValidReadings && !hasUnavailableReadings)) {
         throw new Error('The ESP32 returned an invalid sensor status response.');
       }
 
       if (requestedUrl !== state.deviceUrl) return;
       const previousWarningKey = state.activeWarningKey;
-      state.temperature = status.temperature;
-      state.humidity = status.humidity;
+      state.temperature = hasValidReadings ? status.temperature : null;
+      state.humidity = hasValidReadings ? status.humidity : null;
       state.sensorOK = status.sensorOK === true;
       if (typeof status.warning === 'string') {
         state.warning = status.warning.trim();

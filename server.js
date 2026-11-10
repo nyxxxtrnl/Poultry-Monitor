@@ -21,6 +21,7 @@ const HISTORY_LIMIT = 500;
 const STATIC_FILES = new Set([
   'index.html',
   'styles.css',
+  'cloud-config.js',
   'app.js',
   'manifest.webmanifest',
   'service-worker.js',
@@ -110,9 +111,15 @@ function parseStatus(body) {
     throw new Error(`ESP32 status response was not valid JSON: ${error.message}`);
   }
 
+  const hasValidReadings = typeof status?.temperature === 'number' &&
+    Number.isFinite(status.temperature) &&
+    typeof status?.humidity === 'number' &&
+    Number.isFinite(status.humidity);
+  const hasUnavailableReadings = status?.sensorOK === false &&
+    status.temperature === null && status.humidity === null;
+
   if (!status || typeof status !== 'object' || Array.isArray(status) ||
-      typeof status.temperature !== 'number' || !Number.isFinite(status.temperature) ||
-      typeof status.humidity !== 'number' || !Number.isFinite(status.humidity) ||
+      (!hasValidReadings && !hasUnavailableReadings) ||
       (status.sensorOK !== undefined && typeof status.sensorOK !== 'boolean') ||
       (status.warning !== undefined && status.warning !== null &&
         typeof status.warning !== 'string' && typeof status.warning !== 'boolean')) {
@@ -120,8 +127,8 @@ function parseStatus(body) {
   }
 
   return {
-    temperature: status.temperature,
-    humidity: status.humidity,
+    temperature: hasValidReadings ? status.temperature : null,
+    humidity: hasValidReadings ? status.humidity : null,
     sensorOK: status.sensorOK === true,
     warning: normalizeWarning(status.warning),
   };
@@ -181,7 +188,7 @@ function handleStatusRequest(request, response) {
             sendJson(response, 502, { error: 'The ESP32 returned invalid sensor data.' }, request.method);
             return;
           }
-          if (request.method === 'GET') {
+          if (request.method === 'GET' && status.temperature !== null) {
             try {
               saveStatusReading(status);
             } catch (error) {

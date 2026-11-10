@@ -1,10 +1,11 @@
 'use strict';
 
-const CACHE_NAME = 'poultry-monitor-shell-v1';
+const CACHE_NAME = 'poultry-monitor-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
+  './cloud-config.js',
   './app.js',
   './manifest.webmanifest',
   './app-icon-192.png',

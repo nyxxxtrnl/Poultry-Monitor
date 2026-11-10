@@ -1,0 +1,2 @@
+[functions.poultry-monitor]
+verify_jwt = false
