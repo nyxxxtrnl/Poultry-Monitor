@@ -93,7 +93,7 @@ oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
 mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
 emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 -----END CERTIFICATE-----
-)";
+)PEM";
 
 const unsigned long CLOUD_UPLOAD_INTERVAL = 10000;
 const unsigned long WIFI_RETRY_INTERVAL = 30000;
