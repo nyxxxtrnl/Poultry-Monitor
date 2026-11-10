@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1018">
+    <meta name="description" content="Live temperature and humidity monitoring for a poultry house.">
+    <title>Poultry House Monitor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+      <symbol id="icon-weather" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .4-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7Z"/><path d="M8 21v-1m4 1v-1m4 1v-1"/></symbol>
+      <symbol id="icon-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5m4-1v5l3 2"/></symbol>
+      <symbol id="icon-settings" viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1 1.1.9-1.2 2.1-1.4-.5a8 8 0 0 1-1.5.9l-.2 1.5h-2.5l-.3-1.5a8 8 0 0 1-1.6-.9l-1.4.5-1.2-2.1 1.2-1a7 7 0 0 1 0-1.8l-1.2-1 1.2-2.1 1.4.5a8 8 0 0 1 1.6-.9l.3-1.5h2.5l.2 1.5a8 8 0 0 1 1.5.9l1.4-.5 1.2 2.1-1.1 1a7 7 0 0 1-.1 1.8Z" transform="translate(-1 -1) scale(1.08)"/></symbol>
+      <symbol id="icon-thermometer" viewBox="0 0 24 24"><path d="M14 14.8V5a3 3 0 0 0-6 0v9.8a5 5 0 1 0 6 0Z"/><path d="M11 12V5"/></symbol>
+      <symbol id="icon-drop" viewBox="0 0 24 24"><path d="M12 3s7 7.2 7 12a7 7 0 0 1-14 0c0-4.8 7-12 7-12Z"/><path d="M9 16a3 3 0 0 0 3 3"/></symbol>
+      <symbol id="icon-wifi" viewBox="0 0 24 24"><path d="M3 9a14 14 0 0 1 18 0M6.5 12.5a9 9 0 0 1 11 0M10 16a4 4 0 0 1 4 0"/><circle cx="12" cy="19" r="1"/></symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.5-3"/></symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="icon-alert" viewBox="0 0 24 24"><path d="M12 3 2.8 19h18.4L12 3Z"/><path d="M12 9v4m0 3h.01"/></symbol>
+    </svg>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <a class="brand" href="#home" data-page-link="home" aria-label="Poultry House Monitor home">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <span class="brand-copy"><strong>coop<span>care</span></strong><small>HOUSE MONITOR</small></span>
+        </a>
+        <div class="side-label">MONITORING</div>
+        <nav class="side-nav">
+          <button class="nav-link active" type="button" data-page="home"><svg><use href="#icon-grid"></use></svg><span>Overview</span></button>
+          <button class="nav-link" type="button" data-page="climate"><svg><use href="#icon-weather"></use></svg><span>Climate</span></button>
+          <button class="nav-link" type="button" data-page="history"><svg><use href="#icon-history"></use></svg><span>History</span></button>
+        </nav>
+        <div class="side-label side-label-settings">PREFERENCES</div>
+        <nav class="side-nav">
+          <button class="nav-link" type="button" data-page="settings"><svg><use href="#icon-settings"></use></svg><span>Settings</span></button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="mini-connection"><span class="status-dot"></span><span><strong id="sidebar-status">Connecting</strong><small id="sidebar-address">192.168.4.1</small></span></div>
+          <div class="sidebar-foot">ESP32-S3 <span>·</span> DHT22</div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="mobile-brand">
+            <span class="brand-mark"><span></span><span></span><span></span></span>
+            <span class="brand-copy"><strong>coop<span>care</span></strong><small>HOUSE MONITOR</small></span>
+          </div>
+          <div class="page-heading">
+            <p class="eyebrow">POULTRY HOUSE <span class="eyebrow-separator">/</span> <span id="heading-section">OVERVIEW</span></p>
+            <h1 id="page-title">Good day, caretaker <span class="wave">✳</span></h1>
+          </div>
+          <div class="topbar-actions">
+            <span class="last-updated"><span class="status-dot"></span><span id="updated-label">Waiting for readings</span></span>
+            <button class="icon-button" id="refresh-button" type="button" aria-label="Refresh sensor data" title="Refresh now"><svg><use href="#icon-refresh"></use></svg></button>
+          </div>
+        </header>
+
+        <div class="connection-banner" id="connection-banner" role="status">
+          <span class="banner-icon"><svg><use href="#icon-wifi"></use></svg></span>
+          <span class="banner-copy"><strong id="connection-title">Connecting to your monitor</strong><small id="connection-message">Checking the ESP32 sensor and local Wi-Fi connection.</small><button class="stop-warning-button" id="stop-warning-button" type="button" hidden>Stop hardware alarm</button><small class="warning-action-message" id="warning-action-message" aria-live="polite"></small></span>
+          <span class="banner-state" id="connection-state">CONNECTING</span>
+        </div>
+
+        <section class="page-panel active" id="page-home" data-page-panel="home">
+          <div class="section-intro">
+            <div><p class="eyebrow">LIVE CONDITIONS</p><h2>Your house at a glance</h2></div>
+            <span class="update-chip"><span class="pulse-dot"></span> AUTO-REFRESH · 3 SEC</span>
+          </div>
+          <div class="metric-grid">
+            <article class="metric-card temperature-card">
+              <div class="metric-topline"><span class="metric-icon"><svg><use href="#icon-thermometer"></use></svg></span><span class="metric-category">AIR TEMPERATURE</span><span class="metric-live">LIVE</span></div>
+              <div class="metric-value"><span id="temperature-value">--.-</span><span class="metric-unit">°C</span></div>
+              <div class="metric-footer"><span class="metric-caption">Inside poultry house</span><span class="metric-indicator" id="temperature-condition">Waiting for data</span></div>
+              <div class="metric-decoration temperature-decoration"></div>
+            </article>
+            <article class="metric-card humidity-card">
+              <div class="metric-topline"><span class="metric-icon"><svg><use href="#icon-drop"></use></svg></span><span class="metric-category">RELATIVE HUMIDITY</span><span class="metric-live">LIVE</span></div>
+              <div class="metric-value"><span id="humidity-value">--.-</span><span class="metric-unit">%</span></div>
+              <div class="metric-footer"><span class="metric-caption">Moisture in the air</span><span class="metric-indicator" id="humidity-condition">Waiting for data</span></div>
+              <div class="metric-decoration humidity-decoration"></div>
+            </article>
+          </div>
+
+          <div class="overview-grid">
+            <article class="panel sensor-panel">
+              <div class="panel-heading"><div><p class="eyebrow">HARDWARE</p><h3>Sensor health</h3></div><span class="health-icon" id="sensor-health-icon"><svg><use href="#icon-check"></use></svg></span></div>
+              <div class="sensor-health-row"><div class="sensor-symbol"><svg><use href="#icon-thermometer"></use></svg></div><div class="sensor-info"><strong>DHT22 sensor</strong><small>Temperature & humidity</small></div><span class="health-pill" id="sensor-health-pill">CHECKING</span></div>
+              <div class="sensor-health-row"><div class="sensor-symbol wifi-symbol"><svg><use href="#icon-wifi"></use></svg></div><div class="sensor-info"><strong>ESP32-S3</strong><small id="device-address-label">192.168.4.1</small></div><span class="health-pill" id="device-health-pill">CHECKING</span></div>
+              <div class="panel-note"><span class="note-mark">i</span><span>Local Wi-Fi connection only. Internet access is not provided by the ESP32.</span></div>
+            </article>
+
+            <article class="panel recent-panel">
+              <div class="panel-heading"><div><p class="eyebrow">DEVICE LOG</p><h3>Recent readings</h3></div><button class="text-button" type="button" data-page="history">View history <svg><use href="#icon-arrow"></use></svg></button></div>
+              <div class="recent-list" id="recent-list"><div class="empty-state">Your recent readings will appear here when the monitor connects.</div></div>
+            </article>
+          </div>
+          <footer class="page-footer">Designed for calm, healthy poultry houses <span>·</span> Read-only environmental monitoring</footer>
+        </section>
+
+        <section class="page-panel" id="page-climate" data-page-panel="climate" hidden>
+          <div class="section-intro"><div><p class="eyebrow">ENVIRONMENT</p><h2>House climate</h2><p class="section-description">A clear look at the current conditions reported by your DHT22 sensor.</p></div></div>
+          <div class="metric-grid climate-metrics">
+            <article class="metric-card temperature-card"><div class="metric-topline"><span class="metric-icon"><svg><use href="#icon-thermometer"></use></svg></span><span class="metric-category">TEMPERATURE</span></div><div class="metric-value"><span id="climate-temperature-value">--.-</span><span class="metric-unit">°C</span></div><div class="climate-meter"><span id="temperature-meter"></span></div><div class="metric-footer"><span class="metric-caption">Measured inside the house</span><span class="metric-indicator" id="climate-temperature-condition">Waiting for data</span></div></article>
+            <article class="metric-card humidity-card"><div class="metric-topline"><span class="metric-icon"><svg><use href="#icon-drop"></use></svg></span><span class="metric-category">RELATIVE HUMIDITY</span></div><div class="metric-value"><span id="climate-humidity-value">--.-</span><span class="metric-unit">%</span></div><div class="climate-meter"><span id="humidity-meter"></span></div><div class="metric-footer"><span class="metric-caption">Measured inside the house</span><span class="metric-indicator" id="climate-humidity-condition">Waiting for data</span></div></article>
+          </div>
+          <article class="panel climate-note"><span class="note-mark">i</span><div><h3>Monitoring, not automation</h3><p>This dashboard reports temperature and relative humidity only. It does not control fans, heaters, or ventilation. Use your project’s validated thresholds when assessing readings.</p></div></article>
+          <div class="climate-updated"><svg><use href="#icon-clock"></use></svg><span id="climate-updated-label">Waiting for the first successful reading</span></div>
+        </section>
+
+        <section class="page-panel" id="page-history" data-page-panel="history" hidden>
+          <div class="section-intro history-heading"><div><p class="eyebrow">SAVED ON YOUR ESP32</p><h2>Sensor history</h2><p class="section-description">Past readings returned by the monitor. Times are device uptime, not calendar timestamps.</p></div><span class="record-count" id="record-count">0 <small>records</small></span></div>
+          <article class="panel chart-panel"><div class="panel-heading"><div><p class="eyebrow">TEMPERATURE SNAPSHOT</p><h3>Recent temperature trend</h3></div><span class="chart-unit">°C</span></div><div class="bar-chart" id="history-chart"><div class="chart-empty">History appears here once the ESP32 returns stored readings.</div></div><div class="chart-legend"><span><i></i>Temperature</span><span>Latest device records</span></div></article>
+          <article class="panel history-panel"><div class="panel-heading"><div><p class="eyebrow">ALL READINGS</p><h3>History log</h3></div><span class="table-refresh">Updates with sensor refresh</span></div><div class="history-list" id="history-list"><div class="empty-state">No history records available.</div></div></article>
+          <div class="history-disclaimer"><span class="note-mark">i</span> Device uptime resets when the ESP32 restarts; it is not the time or date a reading was taken.</div>
+        </section>
+
+        <section class="page-panel settings-panel" id="page-settings" data-page-panel="settings" hidden>
+          <div class="section-intro"><div><p class="eyebrow">PREFERENCES</p><h2>Monitor settings</h2><p class="section-description">Connect this dashboard to your ESP32 on the PoultryMonitor local Wi-Fi network.</p></div></div>
+          <article class="panel settings-card"><div class="panel-heading"><div><p class="eyebrow">CONNECTION</p><h3>ESP32 address</h3></div><span class="settings-icon"><svg><use href="#icon-wifi"></use></svg></span></div>
+            <form id="settings-form" novalidate><label class="field-label" for="device-url">Device base URL</label><div class="input-wrap"><span class="input-prefix"><svg><use href="#icon-wifi"></use></svg></span><input id="device-url" name="deviceUrl" type="url" inputmode="url" autocomplete="url" placeholder="http://192.168.4.1" spellcheck="false" required><button class="save-button" id="save-button" type="submit">Save & connect <svg><use href="#icon-arrow"></use></svg></button></div><p class="field-help">Default ESP32 address: <code>http://192.168.4.1</code></p><p class="form-message" id="settings-message" role="status"></p></form>
+          </article>
+          <article class="panel diagnostics-card" aria-live="polite">
+            <div class="panel-heading"><div><p class="eyebrow">LIVE CHECK</p><h3>Connection diagnostics</h3></div><span class="diagnostics-updated" id="diagnostic-attempt">Not checked yet</span></div>
+            <dl class="diagnostics-list">
+              <div><dt>ESP32 status endpoint</dt><dd id="diagnostic-status-api">Waiting</dd></div>
+              <div><dt>Reading history endpoint</dt><dd id="diagnostic-history-api">Waiting</dd></div>
+              <div><dt>Last successful reading</dt><dd id="diagnostic-last-reading">No reading received yet</dd></div>
+              <div class="diagnostic-error-row" id="diagnostic-error-row" hidden><dt>Latest issue</dt><dd id="diagnostic-error"></dd></div>
+            </dl>
+            <p class="diagnostics-help">If the ESP32 is offline, join its Wi-Fi network and confirm the address above. When running this dashboard with <code>node server.js</code>, the server proxies the default <code>192.168.4.1</code> address.</p>
+          </article>
+          <article class="panel instructions-card"><div class="panel-heading"><div><p class="eyebrow">GETTING CONNECTED</p><h3>Use the local network</h3></div></div><ol class="setup-steps"><li><span>01</span><div><strong>Join the ESP32 Wi-Fi</strong><p>Connect your phone to <b>PoultryMonitor</b> in Wi-Fi settings.</p></div></li><li><span>02</span><div><strong>Open this dashboard from the ESP32</strong><p>For browser access, the dashboard files should be served by the ESP32 at <code>192.168.4.1</code>. This keeps API requests on the same origin.</p></div></li><li><span>03</span><div><strong>Check your connection</strong><p>The app reads <code>/api/status</code> and <code>/api/history</code> every three seconds.</p></div></li></ol></article>
+          <article class="panel limitation-card"><span class="note-mark">i</span><div><h3>Monitoring & alarm acknowledgement</h3><p>The dashboard monitors conditions and can silence the hardware warning alarm. It does not control fans, heaters, or other poultry-house equipment. If you host this page on a different address, the ESP32 must allow browser CORS requests.</p></div></article>
+        </section>
+
+        <nav class="mobile-nav" aria-label="Main navigation">
+          <button class="mobile-nav-link active" type="button" data-page="home"><svg><use href="#icon-grid"></use></svg><span>Home</span></button>
+          <button class="mobile-nav-link" type="button" data-page="climate"><svg><use href="#icon-weather"></use></svg><span>Climate</span></button>
+          <button class="mobile-nav-link" type="button" data-page="history"><svg><use href="#icon-history"></use></svg><span>History</span></button>
+          <button class="mobile-nav-link" type="button" data-page="settings"><svg><use href="#icon-settings"></use></svg><span>Settings</span></button>
+        </nav>
+      </main>
+    </div>
+  </body>
+</html>
