@@ -112,7 +112,7 @@
     elements.darkModeToggle.checked = theme === 'dark';
     elements.themeModeLabel.textContent = theme === 'dark' ? 'On' : 'Off';
     document.querySelector('meta[name="theme-color"]').content =
-      theme === 'dark' ? '#191816' : '#f4f0e9';
+      theme === 'dark' ? '#10191b' : '#f0f7f5';
   }
 
   function saveThemePreference() {
@@ -322,7 +322,7 @@
       elements.deviceHealthPill.className = 'health-pill offline';
       elements.sensorHealthPill.textContent = 'NO DATA';
       elements.sensorHealthPill.className = 'health-pill offline';
-      elements.sensorHealthIcon.style.background = 'rgba(255,136,124,.1)';
+      elements.sensorHealthIcon.style.background = 'rgba(var(--danger-rgb), .1)';
       elements.sensorHealthIcon.style.color = 'var(--danger)';
       return;
     }
@@ -337,15 +337,15 @@
       elements.connectionState.textContent = 'WARNING';
       elements.sensorHealthPill.textContent = state.sensorOK ? 'WARNING' : 'CHECK SENSOR';
       elements.sensorHealthPill.className = `health-pill ${state.sensorOK ? 'warning' : 'offline'}`;
-      elements.sensorHealthIcon.style.background = 'rgba(230,189,100,.1)';
-      elements.sensorHealthIcon.style.color = '#e6bd64';
+      elements.sensorHealthIcon.style.background = 'rgba(var(--warning-rgb), .1)';
+      elements.sensorHealthIcon.style.color = 'var(--warning)';
     } else {
       elements.connectionTitle.textContent = 'Your monitor is connected';
       elements.connectionMessage.textContent = 'The ESP32-S3 is reporting data from the DHT22 sensor.';
       elements.connectionState.textContent = 'ALL SYSTEMS GO';
       elements.sensorHealthPill.textContent = 'HEALTHY';
       elements.sensorHealthPill.className = 'health-pill online';
-      elements.sensorHealthIcon.style.background = 'rgba(145,182,154,.12)';
+      elements.sensorHealthIcon.style.background = 'rgba(var(--ok-rgb), .12)';
       elements.sensorHealthIcon.style.color = 'var(--ok)';
     }
   }

@@ -1,8 +1,9 @@
 # Poultry House Monitor
 
 Responsive HTML, CSS, JavaScript, and SQLite dashboard for the ESP32-S3 poultry
-temperature and humidity monitor. It uses a warm, muted brown-and-cream card
-grid and offers dark and light themes, with the selected theme saved in the browser.
+temperature and humidity monitor. It uses a distinctive teal-and-sea-glass
+palette with coral sensor accents, and offers dark and light themes with the
+selected theme saved in the browser.
 
 ## Features
 
