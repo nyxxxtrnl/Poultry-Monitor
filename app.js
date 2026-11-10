@@ -3,6 +3,7 @@
 
   const DEFAULT_DEVICE_URL = 'http://192.168.4.1';
   const STORAGE_KEY = 'poultry-monitor-device-url';
+  const THEME_STORAGE_KEY = 'poultry-monitor-theme';
   const REFRESH_INTERVAL_MS = 3000;
   const REQUEST_TIMEOUT_MS = 5000;
   const DATA_STALE_MS = 10000;
@@ -48,6 +49,9 @@
     deviceUrlInput: $('#device-url'),
     settingsForm: $('#settings-form'),
     settingsMessage: $('#settings-message'),
+    darkModeToggle: $('#dark-mode-toggle'),
+    themeModeLabel: $('#theme-mode-label'),
+    themeMessage: $('#theme-message'),
     saveButton: $('#save-button'),
     refreshButton: $('#refresh-button'),
     pageTitle: $('#page-title'),
@@ -91,6 +95,40 @@
     } catch (error) {
       console.warn('Could not read the saved device address:', error);
       return getDefaultDeviceUrl();
+    }
+  }
+
+  function getSavedTheme() {
+    try {
+      return localStorage.getItem(THEME_STORAGE_KEY) === 'light' ? 'light' : 'dark';
+    } catch (error) {
+      console.warn('Could not read the saved display theme:', error);
+      return 'dark';
+    }
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    elements.darkModeToggle.checked = theme === 'dark';
+    elements.themeModeLabel.textContent = theme === 'dark' ? 'On' : 'Off';
+    document.querySelector('meta[name="theme-color"]').content =
+      theme === 'dark' ? '#191816' : '#f4f0e9';
+  }
+
+  function saveThemePreference() {
+    const previousTheme = document.documentElement.dataset.theme || 'dark';
+    const selectedTheme = elements.darkModeToggle.checked ? 'dark' : 'light';
+    applyTheme(selectedTheme);
+    elements.themeMessage.textContent = '';
+    elements.themeMessage.className = 'form-message';
+
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, selectedTheme);
+    } catch (error) {
+      console.error('Could not save the display theme:', error);
+      applyTheme(previousTheme);
+      elements.themeMessage.textContent = 'Could not save this preference in your browser.';
+      elements.themeMessage.className = 'form-message error';
     }
   }
 
@@ -306,7 +344,7 @@
       elements.connectionState.textContent = 'ALL SYSTEMS GO';
       elements.sensorHealthPill.textContent = 'HEALTHY';
       elements.sensorHealthPill.className = 'health-pill online';
-      elements.sensorHealthIcon.style.background = 'rgba(113,214,193,.1)';
+      elements.sensorHealthIcon.style.background = 'rgba(145,182,154,.12)';
       elements.sensorHealthIcon.style.color = 'var(--ok)';
     }
   }
@@ -663,6 +701,7 @@
   }
 
   function initialize() {
+    applyTheme(getSavedTheme());
     elements.deviceUrlInput.value = state.deviceUrl;
     elements.sidebarAddress.textContent = state.deviceUrl.replace(/^https?:\/\//, '');
     elements.deviceAddressLabel.textContent = state.deviceUrl.replace(/^https?:\/\//, '');
@@ -679,6 +718,7 @@
     elements.refreshButton.addEventListener('click', refreshData);
     elements.stopWarningButton.addEventListener('click', stopHardwareWarning);
     elements.settingsForm.addEventListener('submit', saveDeviceAddress);
+    elements.darkModeToggle.addEventListener('change', saveThemePreference);
 
     const initialPage = window.location.hash.slice(1);
     setPage(pageInfo[initialPage] ? initialPage : 'home');
