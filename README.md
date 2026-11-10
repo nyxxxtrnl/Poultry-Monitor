@@ -77,15 +77,17 @@ Connect both the computer running the server and the phone to the
 `http://192.168.4.2:8080`). If Windows Firewall prompts, allow Node.js on the
 private network. Stop the local server with Ctrl+C when finished.
 
-Alternatively, the updated local ESP32-S3 sketch serves the dashboard and its
-assets directly from flash. Open `C:\Arduino\sketch_oct26a\sketch_oct26a.ino`
-in Arduino IDE, choose the same ESP32-S3 board and port used for the monitor,
-then click **Upload**. Keep `dashboard_assets.h` and `wifi_secrets.h` in the
-sketch folder. After upload, connect the phone to `PoultryMonitor` and open
-`http://192.168.4.1/`; the page uses the ESP32's same-origin live API and does
-not require the Node.js server. The sketch and embedded assets are local, not
-part of this GitHub repository. Do not publish the sketch or
-`wifi_secrets.h` with private Wi-Fi credentials.
+Alternatively, the ESP32-S3 sketch in `firmware/sketch_oct26a/` serves the
+dashboard and its assets directly from flash. Copy that folder to
+`C:\Arduino\sketch_oct26a`, copy `wifi_secrets.example.h` to
+`wifi_secrets.h`, then set the router Wi-Fi name, router password, and device
+token in the local secrets file. Open `sketch_oct26a.ino` in Arduino IDE,
+choose the same ESP32-S3 board and port used for the monitor, then click
+**Upload**. The access point is named `PoultryMonitor` and its configured
+password is `PoultryMonitor123`. After upload, connect the phone to that
+network and open `http://192.168.4.1/`; the page uses the ESP32's same-origin
+live API and does not require the Node.js server. Do not commit or share the
+local `wifi_secrets.h` file.
 
 SQLite history belongs to the computer running `node server.js`. It is not
 shared with a different computer or saved on GitHub Pages. While the ESP32 is
@@ -131,14 +133,15 @@ provided for this setup. To activate the API:
    Keep the token private; do not paste it into chat or commit it.
 4. The public API URL is already set in `cloud-config.js` and the local ESP32
    secrets template. It is public configuration, not a secret.
-5. In the local, untracked
-   `C:\Arduino\sketch_oct26a\wifi_secrets.h`, set the router Wi-Fi name and
-   password and set `DEVICE_INGEST_TOKEN` to the same token configured in
-   Supabase. Do not commit or share this file. The firmware keeps the
-   `PoultryMonitor` access point active while connecting to the router to
-   upload sensor readings every 10 seconds over verified HTTPS.
-6. Compile and upload the sketch to the ESP32-S3. Push the updated dashboard
-   configuration to `main` and wait for the Pages deployment to succeed.
+5. Copy `firmware/sketch_oct26a/wifi_secrets.example.h` to
+   `firmware/sketch_oct26a/wifi_secrets.h` (or to the local sketch folder) and
+   set the router Wi-Fi name and password, plus `DEVICE_INGEST_TOKEN` to the
+   same token configured in Supabase. Do not commit or share this private
+   file. The firmware keeps the `PoultryMonitor` access point active while
+   connecting to the router to upload sensor readings every 10 seconds over
+   verified HTTPS.
+6. Compile and upload the sketch to the ESP32-S3. Push dashboard changes to
+   `main` and wait for the Pages deployment to succeed.
 
 The GitHub Pages dashboard reads the latest public status and up to 500 public
 history records from the Edge Function. Only sensor measurements, warning
