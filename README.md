@@ -12,6 +12,7 @@ selected theme saved in the browser.
 - Persistent sensor history stored in a local SQLite SQL database
 - History list and a temperature chart with local received-at timestamps
 - Desktop sidebar and mobile bottom navigation
+- Installable home-screen app with an offline dashboard shell
 - Saved ESP32 base address
 - Live status for the status and history API endpoints
 - Visible network and API errors, plus a stale-reading warning after 10 seconds
@@ -50,8 +51,22 @@ npm start
 
 Check that the server and its SQLite database are available at
 `http://localhost:8080/api/health`. Run the backend integration tests with
-`npm test`. The server only publishes the dashboard entry point, stylesheet,
-and client script; other files in the project directory are not served.
+`npm test`. The server only publishes the dashboard, install manifest, service
+worker, and app icons; other files in the project directory are not served.
+
+## Install the app on a phone or computer
+
+Open the site over HTTPS on GitHub Pages or use `http://localhost:8080` for the
+local server, then open **Settings → Install app**. Chrome and Edge show the
+native install prompt when available; the browser menu also has an **Install
+app** option. On iPhone or iPad, open the site in Safari, tap **Share**, then
+choose **Add to Home Screen**. The first visit needs an internet connection to
+download the app shell. Its dashboard files can then open offline, but live
+sensor readings and local SQL history still need the ESP32 and local server.
+
+The public GitHub Pages copy can be installed as an app, but it cannot connect
+to the ESP32 or read SQLite stored on another computer. Install the local
+server URL instead when you need live monitoring.
 
 ## Open on a phone
 
@@ -78,7 +93,7 @@ static dashboard at
 `https://nyxxxtrnl.github.io/Poultry-Monitor/`. The repository must allow GitHub
 Actions to deploy Pages (Repository **Settings → Pages → Build and deployment →
 Source: GitHub Actions**). After the workflow succeeds, this public link opens
-the dashboard UI on a phone.
+the installable dashboard UI on a phone.
 
 **GitHub Pages does not make the current ESP32 readings public.** Pages is
 served over HTTPS, and mobile browsers block it from fetching the ESP32's local

@@ -52,6 +52,8 @@
     darkModeToggle: $('#dark-mode-toggle'),
     themeModeLabel: $('#theme-mode-label'),
     themeMessage: $('#theme-message'),
+    installButton: $('#install-button'),
+    installMessage: $('#install-message'),
     saveButton: $('#save-button'),
     refreshButton: $('#refresh-button'),
     pageTitle: $('#page-title'),
@@ -88,6 +90,8 @@
     timer: null,
   };
 
+  let deferredInstallPrompt = null;
+
   function getSavedDeviceUrl() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -113,6 +117,59 @@
     elements.themeModeLabel.textContent = theme === 'dark' ? 'On' : 'Off';
     document.querySelector('meta[name="theme-color"]').content =
       theme === 'dark' ? '#10191b' : '#f0f7f5';
+  }
+
+  function isAppInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+      navigator.standalone === true;
+  }
+
+  function showInstallMessage(message) {
+    elements.installMessage.textContent = message;
+  }
+
+  async function installApp() {
+    if (isAppInstalled()) {
+      showInstallMessage('Coop Care is already installed on this device.');
+      return;
+    }
+
+    if (!deferredInstallPrompt) {
+      const isAppleMobile = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      showInstallMessage(isAppleMobile
+        ? 'To install on iPhone or iPad, tap Share in Safari, then choose Add to Home Screen.'
+        : 'Open your browser menu and choose Install app or Add to Home Screen. Install is available over HTTPS or localhost.');
+      return;
+    }
+
+    const installPrompt = deferredInstallPrompt;
+    deferredInstallPrompt = null;
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      showInstallMessage(choice.outcome === 'accepted'
+        ? 'Installing Coop Care…'
+        : 'Installation was cancelled. You can install it later from your browser menu.');
+    } catch (error) {
+      console.error('Could not start app installation:', error);
+      showInstallMessage('Could not start installation. Use your browser menu to install the app.');
+    }
+  }
+
+  function setupProgressiveWebApp() {
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      showInstallMessage('Coop Care was installed successfully.');
+    });
+
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+      navigator.serviceWorker.register('./service-worker.js')
+        .catch((error) => console.error('Could not register the offline app shell:', error));
+    }
   }
 
   function saveThemePreference() {
@@ -720,7 +777,9 @@
     elements.stopWarningButton.addEventListener('click', stopHardwareWarning);
     elements.settingsForm.addEventListener('submit', saveDeviceAddress);
     elements.darkModeToggle.addEventListener('change', saveThemePreference);
+    elements.installButton.addEventListener('click', installApp);
 
+    setupProgressiveWebApp();
     const initialPage = window.location.hash.slice(1);
     setPage(pageInfo[initialPage] ? initialPage : 'home');
     renderStatus();

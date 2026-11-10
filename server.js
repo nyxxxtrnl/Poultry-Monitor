@@ -18,14 +18,24 @@ const REQUEST_TIMEOUT_MS = 5000;
 const MAX_UPSTREAM_RESPONSE_BYTES = 1024 * 1024;
 const MAX_PROXY_REQUEST_BYTES = 16 * 1024;
 const HISTORY_LIMIT = 500;
-const STATIC_FILES = new Set(['index.html', 'styles.css', 'app.js']);
+const STATIC_FILES = new Set([
+  'index.html',
+  'styles.css',
+  'app.js',
+  'manifest.webmanifest',
+  'service-worker.js',
+  'app-icon-192.png',
+  'app-icon-512.png',
+]);
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.ico': 'image/x-icon',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
 };
 
 if (!['http:', 'https:'].includes(ESP32_URL.protocol) ||

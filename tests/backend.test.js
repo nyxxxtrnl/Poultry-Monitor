@@ -141,6 +141,18 @@ test('backend APIs validate status, persist history, and protect static files', 
   assert.equal(stopCalled, true);
 
   assert.equal((await request(port, '/')).status, 200);
+  const manifestResponse = await request(port, '/manifest.webmanifest');
+  assert.equal(manifestResponse.status, 200);
+  assert.match(manifestResponse.headers['content-type'], /application\/manifest\+json/);
+  assert.equal(JSON.parse(manifestResponse.body).short_name, 'Coop Care');
+  const workerResponse = await request(port, '/service-worker.js');
+  assert.equal(workerResponse.status, 200);
+  assert.match(workerResponse.headers['content-type'], /text\/javascript/);
+  for (const iconName of ['app-icon-192.png', 'app-icon-512.png']) {
+    const iconResponse = await request(port, `/${iconName}`);
+    assert.equal(iconResponse.status, 200);
+    assert.match(iconResponse.headers['content-type'], /image\/png/);
+  }
   assert.equal((await request(port, '/.gitignore')).status, 404);
   assert.equal((await request(port, '/README.md')).status, 404);
   assert.equal((await request(port, '/.data/poultry-monitor.sqlite')).status, 404);

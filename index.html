@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#10191b">
     <meta name="description" content="Live temperature and humidity monitoring for a poultry house.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Poultry House Monitor</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="app-icon-192.png">
     <link rel="stylesheet" href="styles.css">
     <script src="app.js" defer></script>
   </head>
@@ -127,6 +131,12 @@
           <article class="panel settings-card theme-card"><div class="panel-heading"><div><p class="eyebrow">APPEARANCE</p><h3>Display theme</h3></div><span class="settings-icon"><svg><use href="#icon-settings"></use></svg></span></div>
             <div class="theme-setting"><div class="theme-setting-copy"><strong>Dark mode</strong><small>Choose the look that feels comfortable for you.</small></div><label class="theme-switch"><input id="dark-mode-toggle" type="checkbox" role="switch" aria-label="Dark mode"><span class="switch-track" aria-hidden="true"><span></span></span><span class="switch-label" id="theme-mode-label">On</span></label></div>
             <p class="form-message" id="theme-message" role="status" aria-live="polite"></p>
+          </article>
+          <article class="panel settings-card app-install-card">
+            <div class="panel-heading"><div><p class="eyebrow">APP</p><h3>Install on your device</h3></div><span class="settings-icon"><svg><use href="#icon-grid"></use></svg></span></div>
+            <p class="install-description">Add Coop Care to your home screen for quick access. The app shell can open offline; live readings still need the ESP32 network.</p>
+            <button class="save-button install-button" id="install-button" type="button">Install app</button>
+            <p class="form-message install-message" id="install-message" role="status" aria-live="polite">If there is no install prompt, use your browser menu: Install app or Add to Home Screen.</p>
           </article>
           <article class="panel settings-card"><div class="panel-heading"><div><p class="eyebrow">CONNECTION</p><h3>ESP32 address</h3></div><span class="settings-icon"><svg><use href="#icon-wifi"></use></svg></span></div>
             <form id="settings-form" novalidate><label class="field-label" for="device-url">Device base URL</label><div class="input-wrap"><span class="input-prefix"><svg><use href="#icon-wifi"></use></svg></span><input id="device-url" name="deviceUrl" type="url" inputmode="url" autocomplete="url" placeholder="http://192.168.4.1" spellcheck="false" required><button class="save-button" id="save-button" type="submit">Save & connect <svg><use href="#icon-arrow"></use></svg></button></div><p class="field-help">Default ESP32 address: <code>http://192.168.4.1</code></p><p class="form-message" id="settings-message" role="status"></p></form>
