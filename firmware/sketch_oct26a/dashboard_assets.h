@@ -970,6 +970,7 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
             cloudUrl.search || cloudUrl.hash) {
           return 'The public sensor API must be a valid HTTPS Supabase Edge Function URL.';
         }
+        return '';
       } catch (_) {
         return 'The public sensor API URL in cloud-config.js is invalid.';
       }
