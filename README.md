@@ -21,7 +21,7 @@ selected theme saved in the browser.
 Install Node.js 24 or newer, then open PowerShell in this folder and run:
 
 ```powershell
-node server.js
+npm start
 ```
 
 Open [http://localhost:8080](http://localhost:8080) in a browser. The Node.js
@@ -29,8 +29,29 @@ dashboard proxies `/api/status` to `http://192.168.4.1/api/status` and saves
 each valid reading into `.data/poultry-monitor.sqlite`. The browser then reads
 `/api/history` from that same Node.js server, which returns the saved SQL
 records. The database and its folder are created automatically and excluded
-from Git. The ESP32 target can be changed with the `ESP32_URL` environment
-variable. Keep the dashboard open and the server running to collect readings.
+from Git. Keep the dashboard open and the server running to collect readings.
+
+Configure the backend before starting it with optional environment variables:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `HOST` | `0.0.0.0` | Network interface used by the dashboard server |
+| `PORT` | `8080` | HTTP port, from 1 to 65535 |
+| `ESP32_URL` | `http://192.168.4.1` | ESP32 HTTP(S) base URL |
+| `SQLITE_PATH` | `.data/poultry-monitor.sqlite` | SQLite database file location |
+
+For example, in PowerShell:
+
+```powershell
+$env:ESP32_URL = "http://192.168.4.1"
+$env:SQLITE_PATH = ".data/poultry-monitor.sqlite"
+npm start
+```
+
+Check that the server and its SQLite database are available at
+`http://localhost:8080/api/health`. Run the backend integration tests with
+`npm test`. The server only publishes the dashboard entry point, stylesheet,
+and client script; other files in the project directory are not served.
 
 ## Open on a phone
 
@@ -96,6 +117,15 @@ silence/acknowledge its active alarm while continuing to report the warning in
 the hardware condition clears. The local Node.js proxy forwards this POST to
 the ESP32. Without firmware support, the button reports that the command
 failed rather than pretending the hardware alarm was stopped.
+
+`GET /api/health` verifies that the backend can query its SQLite database:
+
+```json
+{
+  "status": "ok",
+  "database": "ok"
+}
+```
 
 `GET /api/history` (dashboard server reads its local SQLite database):
 
