@@ -24,11 +24,12 @@ node server.js
 ```
 
 Open [http://localhost:8080](http://localhost:8080) in a browser. The Node.js
-server reads live status from `http://192.168.4.1/api/status` and saves each
-valid reading into `.data/poultry-monitor.sqlite`. The dashboard's
-`/api/history` endpoint reads saved records from SQLite. The database and its
-folder are created automatically and excluded from Git. The ESP32 target can
-be changed with the `ESP32_URL` environment variable.
+dashboard proxies `/api/status` to `http://192.168.4.1/api/status` and saves
+each valid reading into `.data/poultry-monitor.sqlite`. The browser then reads
+`/api/history` from that same Node.js server, which returns the saved SQL
+records. The database and its folder are created automatically and excluded
+from Git. The ESP32 target can be changed with the `ESP32_URL` environment
+variable. Keep the dashboard open and the server running to collect readings.
 
 ## Open on a phone
 

@@ -255,13 +255,14 @@
   }
 
   function getApiRequestUrl(path, baseUrl) {
-    const usesSameOriginEsp32 =
+    const isEsp32Dashboard =
+      window.location.protocol === 'http:' &&
       window.location.hostname === '192.168.4.1' &&
       normalizeUrl(baseUrl) === normalizeUrl(window.location.origin);
-    const usesLocalProxyForDefaultDevice =
-      window.location.port === '8080' &&
-      normalizeUrl(baseUrl) === DEFAULT_DEVICE_URL;
-    return usesSameOriginEsp32 || usesLocalProxyForDefaultDevice
+    const isLocalNodeDashboard =
+      window.location.protocol === 'http:' &&
+      window.location.hostname !== '192.168.4.1';
+    return isEsp32Dashboard || isLocalNodeDashboard
       ? path
       : `${baseUrl}${path}`;
   }
