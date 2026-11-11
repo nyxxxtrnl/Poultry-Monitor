@@ -12,6 +12,7 @@
   const IS_FIREBASE_CLOUD_PAGE =
     window.location.protocol === 'https:' && Boolean(FIREBASE_DATABASE_URL);
   const STORAGE_KEY = 'poultry-monitor-device-url';
+  const BLUETOOTH_DEVICE_ID_KEY = 'poultry-monitor-bluetooth-device-id';
   const HISTORY_STORAGE_KEY = 'poultry-monitor-sensor-history';
   const THEME_STORAGE_KEY = 'poultry-monitor-theme';
   const REFRESH_INTERVAL_MS = 3000;
@@ -143,6 +144,15 @@
     } catch (error) {
       console.warn('Could not read saved sensor history:', error);
       return [];
+    }
+  }
+
+  function getSavedBluetoothDeviceId() {
+    try {
+      return localStorage.getItem(BLUETOOTH_DEVICE_ID_KEY) || '';
+    } catch (error) {
+      console.warn('Could not read the saved Bluetooth monitor:', error);
+      return '';
     }
   }
 
@@ -1048,6 +1058,91 @@
     renderReadings();
   }
 
+  async function connectToBluetoothDevice(device) {
+    device.addEventListener('gattserverdisconnected', () => {
+      if (state.bluetoothDevice !== device) return;
+      state.bluetoothDevice = null;
+      state.bluetoothCharacteristic = null;
+      state.bluetoothHistoryCharacteristic = null;
+      state.bluetoothReadyForReconnect = true;
+      state.connectionType = IS_FIREBASE_CLOUD_PAGE ? 'cloud' : 'network';
+      state.connected = false;
+      state.sensorOK = false;
+      state.statusApiState = 'error';
+      if (!IS_FIREBASE_CLOUD_PAGE) state.historyApiState = 'waiting';
+      state.lastError = 'Bluetooth connection to the ESP32 was lost.';
+      if (IS_FIREBASE_CLOUD_PAGE) renderFirebaseHistory();
+      renderStatus();
+      renderDiagnostics();
+      if (IS_FIREBASE_CLOUD_PAGE) {
+        startFirebaseListeners();
+        refreshData();
+      }
+    }, { once: true });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+    state.bluetoothCharacteristic = await service.getCharacteristic(
+      BLE_STATUS_CHARACTERISTIC_UUID,
+    );
+    try {
+      state.bluetoothHistoryCharacteristic = await service.getCharacteristic(
+        BLE_HISTORY_CHARACTERISTIC_UUID,
+      );
+    } catch (error) {
+      console.warn('ESP32 Bluetooth history is unavailable; update the firmware to restore device history.', error);
+      state.bluetoothHistoryCharacteristic = null;
+    }
+    state.bluetoothDevice = device;
+    try {
+      localStorage.setItem(BLUETOOTH_DEVICE_ID_KEY, device.id);
+    } catch (error) {
+      console.warn('Could not save the selected Bluetooth monitor:', error);
+    }
+    state.bluetoothReadyForReconnect = false;
+    state.connectionType = 'bluetooth';
+    state.bluetoothHistory = [];
+    if (!IS_FIREBASE_CLOUD_PAGE) {
+      state.historyApiState = state.bluetoothHistoryCharacteristic
+        ? 'checking'
+        : 'not-available';
+    }
+    state.lastError = '';
+    renderHistory();
+    await refreshData();
+  }
+
+  async function restoreBluetoothConnection() {
+    if (!navigator.bluetooth || typeof navigator.bluetooth.getDevices !== 'function') {
+      return false;
+    }
+
+    let device = null;
+    try {
+      const devices = await navigator.bluetooth.getDevices();
+      const savedDeviceId = getSavedBluetoothDeviceId();
+      device = devices.find((candidate) => candidate.id === savedDeviceId) ||
+        devices.find((candidate) => candidate.name?.startsWith('PoultryMonitor'));
+      if (!device) return false;
+
+      elements.bluetoothConnectButton.disabled = true;
+      elements.bluetoothConnectButton.textContent = 'Reconnecting…';
+      await connectToBluetoothDevice(device);
+      return true;
+    } catch (error) {
+      console.warn('Could not automatically reconnect to the ESP32 over Bluetooth:', error);
+      if (device?.gatt?.connected) device.gatt.disconnect();
+      state.bluetoothDevice = null;
+      state.bluetoothCharacteristic = null;
+      state.bluetoothHistoryCharacteristic = null;
+      state.connectionType = IS_FIREBASE_CLOUD_PAGE ? 'cloud' : 'network';
+      return false;
+    } finally {
+      elements.bluetoothConnectButton.disabled = !navigator.bluetooth;
+      renderStatus();
+    }
+  }
+
   async function connectBluetooth() {
     if (!navigator.bluetooth) {
       showMessage('Bluetooth is not available here. Open this page in Android Chrome over HTTPS.', 'error');
@@ -1067,52 +1162,7 @@
         filters: [{ namePrefix: 'PoultryMonitor' }],
         optionalServices: [BLE_SERVICE_UUID],
       });
-      device.addEventListener('gattserverdisconnected', () => {
-        if (state.bluetoothDevice !== device) return;
-        state.bluetoothDevice = null;
-        state.bluetoothCharacteristic = null;
-        state.bluetoothHistoryCharacteristic = null;
-        state.bluetoothReadyForReconnect = true;
-        state.connectionType = IS_FIREBASE_CLOUD_PAGE ? 'cloud' : 'network';
-        state.connected = false;
-        state.sensorOK = false;
-        state.statusApiState = 'error';
-        if (!IS_FIREBASE_CLOUD_PAGE) state.historyApiState = 'waiting';
-        state.lastError = 'Bluetooth connection to the ESP32 was lost.';
-        if (IS_FIREBASE_CLOUD_PAGE) renderFirebaseHistory();
-        renderStatus();
-        renderDiagnostics();
-        if (IS_FIREBASE_CLOUD_PAGE) {
-          startFirebaseListeners();
-          refreshData();
-        }
-      }, { once: true });
-
-      const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(BLE_SERVICE_UUID);
-      state.bluetoothCharacteristic = await service.getCharacteristic(
-        BLE_STATUS_CHARACTERISTIC_UUID,
-      );
-      try {
-        state.bluetoothHistoryCharacteristic = await service.getCharacteristic(
-          BLE_HISTORY_CHARACTERISTIC_UUID,
-        );
-      } catch (error) {
-        console.warn('ESP32 Bluetooth history is unavailable; update the firmware to restore device history.', error);
-        state.bluetoothHistoryCharacteristic = null;
-      }
-      state.bluetoothDevice = device;
-      state.bluetoothReadyForReconnect = false;
-      state.connectionType = 'bluetooth';
-      state.bluetoothHistory = [];
-      if (!IS_FIREBASE_CLOUD_PAGE) {
-        state.historyApiState = state.bluetoothHistoryCharacteristic
-          ? 'checking'
-          : 'not-available';
-      }
-      state.lastError = '';
-      renderHistory();
-      await refreshData();
+      await connectToBluetoothDevice(device);
     } catch (error) {
       console.error('Could not connect to the ESP32 over Bluetooth:', error);
       const message = error?.name === 'NotFoundError'
@@ -1339,7 +1389,7 @@
     }
   }
 
-  function initialize() {
+  async function initialize() {
     applyTheme(getSavedTheme());
     elements.deviceUrlInput.value = state.deviceUrl;
     elements.sidebarAddress.textContent = state.deviceUrl.replace(/^https?:\/\//, '');
@@ -1368,7 +1418,8 @@
     renderReadings();
     renderHistory();
     startFirebaseListeners();
-    refreshData();
+    const bluetoothRestored = await restoreBluetoothConnection();
+    if (!bluetoothRestored) await refreshData();
     state.timer = window.setInterval(
       () => {
         if (state.bluetoothCharacteristic) {
