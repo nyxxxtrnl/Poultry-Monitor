@@ -8,7 +8,6 @@
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <ArduinoJson.h>
-#include <string>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include <DHT.h>
@@ -1042,7 +1041,10 @@ void updateBleSensorStatus() {
 
   String payload;
   serializeJson(doc, payload);
-  bleStatusCharacteristic->setValue(std::string(payload.c_str()));
+  bleStatusCharacteristic->setValue(
+    reinterpret_cast<const uint8_t*>(payload.c_str()),
+    payload.length()
+  );
 }
 
 void startBluetoothService() {
