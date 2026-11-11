@@ -12,6 +12,7 @@
   const IS_FIREBASE_CLOUD_PAGE =
     window.location.protocol === 'https:' && Boolean(FIREBASE_DATABASE_URL);
   const STORAGE_KEY = 'poultry-monitor-device-url';
+  const HISTORY_STORAGE_KEY = 'poultry-monitor-sensor-history';
   const THEME_STORAGE_KEY = 'poultry-monitor-theme';
   const REFRESH_INTERVAL_MS = 3000;
   const REQUEST_TIMEOUT_MS = 5000;
@@ -97,7 +98,7 @@
     warningActionMessage: '',
     temperature: null,
     humidity: null,
-    history: [],
+    history: getSavedHistory(),
     bluetoothHistory: [],
     lastUpdated: null,
     lastAttemptAt: null,
@@ -128,6 +129,54 @@
     } catch (error) {
       console.warn('Could not read the saved device address:', error);
       return getDefaultDeviceUrl();
+    }
+  }
+
+  function getSavedHistory() {
+    try {
+      const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (!saved) return [];
+      const history = JSON.parse(saved);
+      return Array.isArray(history)
+        ? history.map(validateHistoryRecord).slice(0, 500)
+        : [];
+    } catch (error) {
+      console.warn('Could not read saved sensor history:', error);
+      return [];
+    }
+  }
+
+  function getHistoryRecordKey(record) {
+    if (record.deviceSequence !== null) return `sequence:${record.deviceSequence}`;
+    if (record.recordedAt) {
+      return `time:${record.recordedAt}:${record.temperature}:${record.humidity}`;
+    }
+    if (record.elapsedMs !== null) {
+      return `elapsed:${record.elapsedMs}:${record.temperature}:${record.humidity}`;
+    }
+    return `reading:${record.temperature}:${record.humidity}`;
+  }
+
+  function mergeHistoryRecords(existing, incoming) {
+    const incomingKeys = new Set(incoming.map(getHistoryRecordKey));
+    const merged = [
+      ...incoming,
+      ...existing.filter((record) => !incomingKeys.has(getHistoryRecordKey(record))),
+    ];
+    const seen = new Set();
+    return merged.filter((record) => {
+      const key = getHistoryRecordKey(record);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 500);
+  }
+
+  function saveHistory() {
+    try {
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(state.history));
+    } catch (error) {
+      console.warn('Could not save sensor history in this browser:', error);
     }
   }
 
@@ -588,11 +637,11 @@
       : IS_FIREBASE_CLOUD_PAGE ? 'Latest Firebase records' : 'Latest SQL records';
     elements.historyDisclaimerText.textContent = isBluetooth
       ? IS_FIREBASE_CLOUD_PAGE
-        ? 'The ESP32 saves the latest 10 readings locally. Firebase history syncs when the monitor has internet.'
-        : 'The ESP32 saves the latest 10 sensor readings and restores them here over Bluetooth.'
+        ? 'The ESP32 saves the latest 10 readings locally. Firebase history syncs when the monitor has internet, and this browser keeps records it has loaded.'
+        : 'The ESP32 saves the latest 10 sensor readings. This browser keeps earlier records it has loaded.'
       : IS_FIREBASE_CLOUD_PAGE
-        ? 'Cloud history is stored in Firebase. Bluetooth-only readings are available while connected.'
-        : 'Records are stored on the computer running this dashboard server. They are separate from the ESP32’s own history.';
+        ? 'Cloud history is stored in Firebase and cached in this browser. Bluetooth-only readings are available while connected.'
+        : 'Records are stored on the computer running this dashboard server and cached in this browser. They are separate from the ESP32’s own history.';
 
     if (state.history.length === 0) {
       const emptyHistoryMessage = state.connectionType === 'bluetooth'
@@ -779,7 +828,8 @@
       const rightTime = right.recordedAt ? Date.parse(right.recordedAt) : right.elapsedMs || 0;
       return rightTime - leftTime;
     });
-    state.history = mergedHistory.slice(0, 500);
+    state.history = mergeHistoryRecords(state.history, mergedHistory);
+    saveHistory();
     if (cloudUpdated) state.historyApiState = 'online';
     renderHistory();
     renderDiagnostics();
@@ -1056,7 +1106,6 @@
       state.connectionType = 'bluetooth';
       state.bluetoothHistory = [];
       if (!IS_FIREBASE_CLOUD_PAGE) {
-        state.history = [];
         state.historyApiState = state.bluetoothHistoryCharacteristic
           ? 'checking'
           : 'not-available';
@@ -1120,7 +1169,8 @@
           if (!IS_FIREBASE_CLOUD_PAGE) state.historyApiState = 'online';
           if (IS_FIREBASE_CLOUD_PAGE) renderFirebaseHistory();
           else {
-            state.history = bluetoothHistory;
+            state.history = mergeHistoryRecords(state.history, bluetoothHistory);
+            saveHistory();
             renderHistory();
           }
         } catch (error) {
@@ -1225,7 +1275,11 @@
             );
             renderFirebaseHistory(true);
           } else {
-            state.history = history.history.map(validateHistoryRecord);
+            state.history = mergeHistoryRecords(
+              state.history,
+              history.history.map(validateHistoryRecord),
+            );
+            saveHistory();
             state.historyApiState = 'online';
             renderHistory();
           }
@@ -1233,9 +1287,7 @@
           console.error('Could not load sensor history:', error);
           state.historyApiState = 'error';
           errors.push(`History endpoint: ${describeConnectionError(error)}`);
-          elements.recentList.innerHTML = '<div class="empty-state">SQL history is temporarily unavailable. The live readings are still updating.</div>';
-          elements.historyList.innerHTML = '<div class="empty-state">Could not load history from the local SQL database.</div>';
-          elements.historyChart.innerHTML = '<div class="chart-empty">Could not load SQL history.</div>';
+          renderHistory();
         }
         state.lastError = errors.join(' ');
         renderDiagnostics();
