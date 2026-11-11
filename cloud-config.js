@@ -1,2 +1,4 @@
-window.POULTRY_CLOUD_API_URL =
-  'https://nwdnkasjrucrpysbjbcc.supabase.co/functions/v1/poultry-monitor';
+window.POULTRY_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDovLKo3djdRbs963vqKdbj-geRWyzMTrg',
+  databaseURL: 'https://poultry-house-monitor-default-rtdb.asia-southeast1.firebasedatabase.app',
+};

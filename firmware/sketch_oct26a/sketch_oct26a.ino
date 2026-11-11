@@ -13,7 +13,9 @@
 #include <DHT.h>
 #include <XPT2046_Touchscreen.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "dashboard_assets.h"
 #include "wifi_secrets.h"
 
@@ -65,48 +67,56 @@ WebServer server(80);
 
 static const char BLE_SERVICE_UUID[] = "a3c87500-8ed3-4bdf-8a39-a01bebede295";
 static const char BLE_STATUS_CHARACTERISTIC_UUID[] = "a3c87501-8ed3-4bdf-8a39-a01bebede295";
+static const char BLE_HISTORY_CHARACTERISTIC_UUID[] = "a3c87502-8ed3-4bdf-8a39-a01bebede295";
 BLECharacteristic* bleStatusCharacteristic = nullptr;
+BLECharacteristic* bleHistoryCharacteristic = nullptr;
 
-static const char LETS_ENCRYPT_ROOT_CA[] PROGMEM = R"PEM(
+static const char GOOGLE_TRUST_ROOT_R1[] PROGMEM = R"PEM(
 -----BEGIN CERTIFICATE-----
-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
+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
+bP6MvPJwNQzcmRk13NfIRmPVNnGuV/u3gm3c
 -----END CERTIFICATE-----
 )PEM";
 
 const unsigned long CLOUD_UPLOAD_INTERVAL = 10000;
 const unsigned long WIFI_RETRY_INTERVAL = 30000;
 const unsigned long BLE_STATUS_UPDATE_INTERVAL = 1000;
+const uint16_t FIREBASE_HISTORY_CAPACITY = 500;
 unsigned long lastCloudUpload = 0;
 unsigned long lastWifiAttempt = 0;
 unsigned long lastBleStatusUpdate = 0;
+unsigned long firebaseTokenExpiresAt = 0;
+String firebaseIdToken;
+uint16_t firebaseHistoryIndex = 0;
+bool networkTimeSyncStarted = false;
+bool networkTimeWarningShown = false;
 
 // =====================================================
 // 3. SENSOR AND ALARM SETTINGS
@@ -978,28 +988,144 @@ void maintainRouterConnection(unsigned long now) {
   WiFi.begin(HOME_WIFI_SSID, HOME_WIFI_PASSWORD);
 }
 
-void uploadReadingToCloud() {
-  if (WiFi.status() != WL_CONNECTED ||
-      strlen(CLOUD_API_BASE_URL) == 0 ||
-      strlen(DEVICE_INGEST_TOKEN) == 0) {
-    return;
+String urlEncode(const String& value) {
+  const char HEX_DIGITS[] = "0123456789ABCDEF";
+  String encoded;
+  encoded.reserve(value.length() * 3);
+  for (size_t i = 0; i < value.length(); i++) {
+    const uint8_t c = static_cast<uint8_t>(value[i]);
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '-' || c == '_' ||
+        c == '.' || c == '~') {
+      encoded += static_cast<char>(c);
+    } else {
+      encoded += '%';
+      encoded += HEX_DIGITS[c >> 4];
+      encoded += HEX_DIGITS[c & 0x0F];
+    }
+  }
+  return encoded;
+}
+
+bool ensureNetworkTime() {
+  if (!networkTimeSyncStarted) {
+    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+    networkTimeSyncStarted = true;
+  }
+  if (time(nullptr) < 1700000000) {
+    if (!networkTimeWarningShown) {
+      Serial.println("Waiting for NTP time before verified Firebase HTTPS.");
+      networkTimeWarningShown = true;
+    }
+    return false;
+  }
+  return true;
+}
+
+bool signInToFirebase() {
+  if (strlen(FIREBASE_API_KEY) == 0 ||
+      strlen(FIREBASE_DEVICE_EMAIL) == 0 ||
+      strlen(FIREBASE_DEVICE_PASSWORD) == 0) {
+    Serial.println("Firebase upload disabled: configure the Firebase device credentials.");
+    return false;
   }
 
   WiFiClientSecure secureClient;
-  secureClient.setCACert(LETS_ENCRYPT_ROOT_CA);
+  secureClient.setCACert(GOOGLE_TRUST_ROOT_R1);
+  HTTPClient http;
+  String endpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=";
+  endpoint += FIREBASE_API_KEY;
+  if (!http.begin(secureClient, endpoint)) {
+    Serial.println("Could not start Firebase authentication.");
+    return false;
+  }
+  http.setTimeout(8000);
 
-  String endpoint = String(CLOUD_API_BASE_URL);
+  DynamicJsonDocument requestDoc(256);
+  requestDoc["email"] = FIREBASE_DEVICE_EMAIL;
+  requestDoc["password"] = FIREBASE_DEVICE_PASSWORD;
+  requestDoc["returnSecureToken"] = true;
+  String requestBody;
+  serializeJson(requestDoc, requestBody);
+  http.addHeader("Content-Type", "application/json");
+  const int statusCode = http.POST(requestBody);
+  if (statusCode < 200 || statusCode >= 300) {
+    Serial.printf("Firebase sign-in failed (HTTP %d).\n", statusCode);
+    http.end();
+    return false;
+  }
+
+  const String responseBody = http.getString();
+  http.end();
+  DynamicJsonDocument responseDoc(4096);
+  DeserializationError parseError = deserializeJson(responseDoc, responseBody);
+  if (parseError) {
+    Serial.printf("Could not parse Firebase sign-in response: %s\n", parseError.c_str());
+    return false;
+  }
+
+  const char* token = responseDoc["idToken"];
+  const char* expiresIn = responseDoc["expiresIn"];
+  if (token == nullptr || token[0] == '\0' || expiresIn == nullptr) {
+    Serial.println("Firebase sign-in response is missing its access token.");
+    return false;
+  }
+
+  const unsigned long lifetimeSeconds = strtoul(expiresIn, nullptr, 10);
+  if (lifetimeSeconds < 120) {
+    Serial.println("Firebase returned an invalid access token lifetime.");
+    return false;
+  }
+  firebaseIdToken = token;
+  firebaseTokenExpiresAt = millis() + (lifetimeSeconds - 60) * 1000UL;
+  Serial.println("Firebase device authentication succeeded.");
+  return true;
+}
+
+bool putFirebaseJson(const String& path, const String& payload) {
+  String endpoint = String(FIREBASE_DATABASE_URL);
   while (endpoint.endsWith("/")) endpoint.remove(endpoint.length() - 1);
-  endpoint += "/ingest";
+  endpoint += path;
+  endpoint += ".json?auth=";
+  endpoint += urlEncode(firebaseIdToken);
 
+  WiFiClientSecure secureClient;
+  secureClient.setCACert(GOOGLE_TRUST_ROOT_R1);
   HTTPClient http;
   if (!http.begin(secureClient, endpoint)) {
-    Serial.println("Could not start HTTPS sensor upload.");
+    Serial.println("Could not start Firebase sensor upload.");
+    return false;
+  }
+  http.setTimeout(8000);
+  http.addHeader("Content-Type", "application/json");
+
+  const int statusCode = http.PUT(payload);
+  if (statusCode < 200 || statusCode >= 300) {
+    Serial.printf("Firebase sensor upload failed (HTTP %d).\n", statusCode);
+    if (statusCode == 401 || statusCode == 403) {
+      firebaseIdToken = "";
+      firebaseTokenExpiresAt = 0;
+    }
+    http.end();
+    return false;
+  }
+  http.end();
+  return true;
+}
+
+void uploadReadingToCloud() {
+  if (WiFi.status() != WL_CONNECTED ||
+      strlen(FIREBASE_DATABASE_URL) == 0) {
     return;
   }
-  http.setTimeout(4000);
+  if (!ensureNetworkTime()) return;
 
-  DynamicJsonDocument doc(256);
+  if (firebaseIdToken.length() == 0 ||
+      static_cast<int32_t>(millis() - firebaseTokenExpiresAt) >= 0) {
+    if (!signInToFirebase()) return;
+  }
+
+  DynamicJsonDocument doc(512);
   doc["sensorOK"] = sensorOK;
   if (sensorOK) {
     doc["temperature"] = tempC;
@@ -1011,16 +1137,19 @@ void uploadReadingToCloud() {
   doc["warning"] = alarmActive
     ? "Temperature or humidity is above the configured limit."
     : nullptr;
+  JsonObject timestamp = doc.createNestedObject("recordedAt");
+  timestamp[".sv"] = "timestamp";
 
   String payload;
   serializeJson(doc, payload);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", String("Bearer ") + DEVICE_INGEST_TOKEN);
-  const int statusCode = http.POST(payload);
-  if (statusCode < 200 || statusCode >= 300) {
-    Serial.printf("Sensor upload failed (HTTP %d).\n", statusCode);
+  if (!putFirebaseJson("/sensor/latest", payload) || !sensorOK) return;
+
+  String historyPath = "/sensor/history/";
+  historyPath += String(firebaseHistoryIndex);
+  if (putFirebaseJson(historyPath, payload)) {
+    firebaseHistoryIndex = (firebaseHistoryIndex + 1) % FIREBASE_HISTORY_CAPACITY;
+    preferences.putUInt("cloud_idx", firebaseHistoryIndex);
   }
-  http.end();
 }
 
 void updateBleSensorStatus() {
@@ -1044,6 +1173,23 @@ void updateBleSensorStatus() {
   bleStatusCharacteristic->setValue(payload);
 }
 
+void updateBleSensorHistory() {
+  if (bleHistoryCharacteristic == nullptr) return;
+
+  DynamicJsonDocument doc(2048);
+  JsonArray history = doc.createNestedArray("history");
+  for (int i = 0; i < historyCount; i++) {
+    JsonArray record = history.createNestedArray();
+    record.add(historyData[i].temperature);
+    record.add(historyData[i].humidity);
+    record.add(historyData[i].elapsedSec);
+  }
+
+  String payload;
+  serializeJson(doc, payload);
+  bleHistoryCharacteristic->setValue(payload);
+}
+
 void startBluetoothService() {
   BLEDevice::init("PoultryMonitor");
   BLEServer* bleServer = BLEDevice::createServer();
@@ -1052,6 +1198,11 @@ void startBluetoothService() {
     BLE_STATUS_CHARACTERISTIC_UUID,
     BLECharacteristic::PROPERTY_READ
   );
+  bleHistoryCharacteristic = service->createCharacteristic(
+    BLE_HISTORY_CHARACTERISTIC_UUID,
+    BLECharacteristic::PROPERTY_READ
+  );
+  updateBleSensorHistory();
   service->start();
 
   BLEAdvertising* advertising = BLEDevice::getAdvertising();
@@ -1161,6 +1312,8 @@ void setup() {
 
   // Preferences
   preferences.begin("poultry", false);
+  firebaseHistoryIndex =
+    preferences.getUInt("cloud_idx", 0) % FIREBASE_HISTORY_CAPACITY;
 
   loadHistory();
 
@@ -1185,7 +1338,7 @@ void setup() {
     lastWifiAttempt = millis();
     WiFi.begin(HOME_WIFI_SSID, HOME_WIFI_PASSWORD);
   } else {
-    Serial.println("Cloud upload disabled: set HOME_WIFI_SSID in wifi_secrets.h.");
+    Serial.println("Cloud upload disabled: configure router Wi-Fi in wifi_secrets.h.");
   }
 
   // Web API
@@ -1275,6 +1428,7 @@ void loop() {
     lastHistorySave = now;
 
     addHistoryRecord();
+    updateBleSensorHistory();
 
     if (currentPage == PAGE_HISTORY) {
 

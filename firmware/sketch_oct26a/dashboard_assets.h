@@ -73,7 +73,7 @@ static const char DASHBOARD_HTML[] PROGMEM = R"PMHTML(<!doctype html>
 
         <div class="connection-banner" id="connection-banner" role="status">
           <span class="banner-icon"><svg><use href="#icon-wifi"></use></svg></span>
-          <span class="banner-copy"><strong id="connection-title">Connecting to your monitor</strong><small id="connection-message">Checking the ESP32 sensor and local Wi-Fi connection.</small><button class="stop-warning-button" id="stop-warning-button" type="button" hidden>Stop hardware alarm</button><small class="warning-action-message" id="warning-action-message" aria-live="polite"></small></span>
+          <span class="banner-copy"><strong id="connection-title">Connecting to your monitor</strong><small id="connection-message">Connect directly to your ESP32 over Bluetooth for live readings.</small><button class="bluetooth-connect-button" id="bluetooth-connect-button" type="button">Connect ESP32 via Bluetooth</button><button class="stop-warning-button" id="stop-warning-button" type="button" hidden>Stop hardware alarm</button><small class="warning-action-message" id="warning-action-message" aria-live="polite"></small></span>
           <span class="banner-state" id="connection-state">CONNECTING</span>
         </div>
 
@@ -131,19 +131,19 @@ static const char DASHBOARD_HTML[] PROGMEM = R"PMHTML(<!doctype html>
         </section>
 
         <section class="page-panel settings-panel" id="page-settings" data-page-panel="settings" hidden>
-          <div class="section-intro"><div><p class="eyebrow">PREFERENCES</p><h2>Monitor settings</h2><p class="section-description">Connect this dashboard to your ESP32 on the PoultryMonitor local Wi-Fi network.</p></div></div>
+          <div class="section-intro"><div><p class="eyebrow">PREFERENCES</p><h2>Monitor settings</h2><p class="section-description">Use Bluetooth for direct phone-to-monitor readings without joining a Wi-Fi network.</p></div></div>
           <article class="panel settings-card theme-card"><div class="panel-heading"><div><p class="eyebrow">APPEARANCE</p><h3>Display theme</h3></div><span class="settings-icon"><svg><use href="#icon-settings"></use></svg></span></div>
             <div class="theme-setting"><div class="theme-setting-copy"><strong>Dark mode</strong><small>Choose the look that feels comfortable for you.</small></div><label class="theme-switch"><input id="dark-mode-toggle" type="checkbox" role="switch" aria-label="Dark mode"><span class="switch-track" aria-hidden="true"><span></span></span><span class="switch-label" id="theme-mode-label">On</span></label></div>
             <p class="form-message" id="theme-message" role="status" aria-live="polite"></p>
           </article>
           <article class="panel settings-card app-install-card">
             <div class="panel-heading"><div><p class="eyebrow">APP</p><h3>Install on your device</h3></div><span class="settings-icon"><svg><use href="#icon-grid"></use></svg></span></div>
-            <p class="install-description">Add Coop Care to your home screen for quick access. The app shell can open offline; live readings still need the ESP32 network.</p>
+            <p class="install-description">Add Coop Care to your home screen for quick access. Open it over HTTPS, then connect to the ESP32 with Bluetooth.</p>
             <button class="save-button install-button" id="install-button" type="button">Install app</button>
             <p class="form-message install-message" id="install-message" role="status" aria-live="polite">If there is no install prompt, use your browser menu: Install app or Add to Home Screen.</p>
           </article>
-          <article class="panel settings-card"><div class="panel-heading"><div><p class="eyebrow">CONNECTION</p><h3>ESP32 address</h3></div><span class="settings-icon"><svg><use href="#icon-wifi"></use></svg></span></div>
-            <form id="settings-form" novalidate><label class="field-label" for="device-url">Device base URL</label><div class="input-wrap"><span class="input-prefix"><svg><use href="#icon-wifi"></use></svg></span><input id="device-url" name="deviceUrl" type="url" inputmode="url" autocomplete="url" placeholder="http://192.168.4.1" spellcheck="false" required><button class="save-button" id="save-button" type="submit">Save & connect <svg><use href="#icon-arrow"></use></svg></button></div><p class="field-help">Default ESP32 address: <code>http://192.168.4.1</code></p><p class="form-message" id="settings-message" role="status"></p></form>
+          <article class="panel settings-card"><div class="panel-heading"><div><p class="eyebrow">OPTIONAL WI-FI</p><h3>ESP32 address</h3></div><span class="settings-icon"><svg><use href="#icon-wifi"></use></svg></span></div>
+            <form id="settings-form" novalidate><label class="field-label" for="device-url">Device base URL</label><div class="input-wrap"><span class="input-prefix"><svg><use href="#icon-wifi"></use></svg></span><input id="device-url" name="deviceUrl" type="url" inputmode="url" autocomplete="url" placeholder="http://192.168.4.1" spellcheck="false" required><button class="save-button" id="save-button" type="submit">Save & connect <svg><use href="#icon-arrow"></use></svg></button></div><p class="field-help">Wi-Fi is optional. For Bluetooth, use the button on the Home screen and keep phone Wi-Fi off.</p><p class="form-message" id="settings-message" role="status"></p></form>
           </article>
           <article class="panel diagnostics-card" aria-live="polite">
             <div class="panel-heading"><div><p class="eyebrow">LIVE CHECK</p><h3>Connection diagnostics</h3></div><span class="diagnostics-updated" id="diagnostic-attempt">Not checked yet</span></div>
@@ -153,10 +153,10 @@ static const char DASHBOARD_HTML[] PROGMEM = R"PMHTML(<!doctype html>
               <div><dt>Last successful reading</dt><dd id="diagnostic-last-reading">No reading received yet</dd></div>
               <div class="diagnostic-error-row" id="diagnostic-error-row" hidden><dt>Latest issue</dt><dd id="diagnostic-error"></dd></div>
             </dl>
-            <p class="diagnostics-help">If the ESP32 is offline, join its Wi-Fi network and confirm the address above. When running this dashboard with <code>node server.js</code>, the server saves each successful reading to the local SQLite database.</p>
+            <p class="diagnostics-help">Bluetooth mode provides live readings without Wi-Fi, but does not sync history to the cloud. The phone needs mobile data to open GitHub Pages; Bluetooth connects it directly to the ESP32.</p>
           </article>
-          <article class="panel instructions-card"><div class="panel-heading"><div><p class="eyebrow">GETTING CONNECTED</p><h3>Use the local network</h3></div></div><ol class="setup-steps"><li><span>01</span><div><strong>Join the ESP32 Wi-Fi</strong><p>Connect your phone to <b>PoultryMonitor</b> in Wi-Fi settings.</p></div></li><li><span>02</span><div><strong>Run the dashboard server</strong><p>Start <code>node server.js</code> on this computer and open its local network address on the phone.</p></div></li><li><span>03</span><div><strong>Readings are saved locally</strong><p>The server polls <code>/api/status</code> and stores readings in SQLite. The dashboard reads history from <code>/api/history</code>.</p></div></li></ol></article>
-          <article class="panel limitation-card"><span class="note-mark">i</span><div><h3>Local SQL, not public cloud</h3><p>SQLite history stays on the computer running this server. GitHub Pages cannot connect directly to your local SQL database or the ESP32’s private Wi-Fi address. Public live data requires a separately hosted API and database.</p></div></article>
+          <article class="panel instructions-card"><div class="panel-heading"><div><p class="eyebrow">GETTING CONNECTED</p><h3>Connect directly with Bluetooth</h3></div></div><ol class="setup-steps"><li><span>01</span><div><strong>Open this dashboard in Android Chrome</strong><p>Use the GitHub Pages link over HTTPS. Mobile data can stay on; Wi-Fi and hotspot are not needed.</p></div></li><li><span>02</span><div><strong>Connect to PoultryMonitor</strong><p>Tap <b>Connect ESP32 via Bluetooth</b> on the Home screen and choose the monitor when Chrome asks.</p></div></li><li><span>03</span><div><strong>Keep Bluetooth on</strong><p>Live readings update on this dashboard. Bluetooth mode does not send readings to cloud history.</p></div></li></ol></article>
+          <article class="panel limitation-card"><span class="note-mark">i</span><div><h3>Bluetooth is local-only</h3><p>Bluetooth sends live readings directly from the ESP32 to this phone. It does not need Wi-Fi, a hotspot, or internet after the dashboard is loaded, but cloud history requires the ESP32 to have its own internet connection.</p></div></article>
         </section>
 
         <nav class="mobile-nav" aria-label="Main navigation">
@@ -333,6 +333,9 @@ h1 { margin-bottom: 0; font: 700 20px/1.3 'Segoe UI', Arial, sans-serif; letter-
 .banner-copy { display: grid; gap: 3px; min-width: 0; }
 .banner-copy strong { font-size: 11px; font-weight: 700; }
 .banner-copy small { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.bluetooth-connect-button { justify-self: start; margin-top: 5px; padding: 7px 10px; border: 1px solid rgba(var(--blue-rgb), .35); border-radius: 7px; background: rgba(var(--blue-rgb), .12); color: var(--blue); font-size: 10px; font-weight: 700; cursor: pointer; }
+.bluetooth-connect-button:hover:not(:disabled) { background: rgba(var(--blue-rgb), .2); }
+.bluetooth-connect-button:disabled { cursor: default; opacity: .7; }
 .stop-warning-button { justify-self: start; margin-top: 5px; padding: 6px 9px; border: 1px solid rgba(var(--warning-rgb), .32); border-radius: 7px; background: rgba(var(--warning-rgb), .12); color: var(--warning); font-size: 9px; font-weight: 700; cursor: pointer; }
 .stop-warning-button:hover:not(:disabled) { background: rgba(var(--warning-rgb), .2); }
 .stop-warning-button:disabled { cursor: default; opacity: .7; }
@@ -619,23 +622,35 @@ code { color: var(--lime); font-family: ui-monospace, SFMono-Regular, Consolas, 
 }
 )PMCSS";
 
-static const char DASHBOARD_CLOUD_CONFIG[] PROGMEM = R"PMCONFIG(window.POULTRY_CLOUD_API_URL =
-  'https://nwdnkasjrucrpysbjbcc.supabase.co/functions/v1/poultry-monitor';
+static const char DASHBOARD_CLOUD_CONFIG[] PROGMEM = R"PMCONFIG(window.POULTRY_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDovLKo3djdRbs963vqKdbj-geRWyzMTrg',
+  databaseURL: 'https://poultry-house-monitor-default-rtdb.asia-southeast1.firebasedatabase.app',
+};
 )PMCONFIG";
 
 static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
   'use strict';
 
   const DEFAULT_DEVICE_URL = 'http://192.168.4.1';
-  const CLOUD_API_URL = typeof window.POULTRY_CLOUD_API_URL === 'string'
-    ? window.POULTRY_CLOUD_API_URL.trim().replace(/\/+$/, '')
+  const FIREBASE_CONFIG = window.POULTRY_FIREBASE_CONFIG &&
+      typeof window.POULTRY_FIREBASE_CONFIG === 'object'
+    ? window.POULTRY_FIREBASE_CONFIG
+    : null;
+  const FIREBASE_DATABASE_URL = typeof FIREBASE_CONFIG?.databaseURL === 'string'
+    ? FIREBASE_CONFIG.databaseURL.trim().replace(/\/+$/, '')
     : '';
+  const IS_FIREBASE_CLOUD_PAGE =
+    window.location.protocol === 'https:' && Boolean(FIREBASE_DATABASE_URL);
   const STORAGE_KEY = 'poultry-monitor-device-url';
   const THEME_STORAGE_KEY = 'poultry-monitor-theme';
   const REFRESH_INTERVAL_MS = 3000;
   const REQUEST_TIMEOUT_MS = 5000;
   const DATA_STALE_MS = 10000;
+  const WAITING_FOR_READING_MESSAGE = 'Waiting for the first ESP32 reading.';
   const MAX_CHART_RECORDS = 12;
+  const BLE_SERVICE_UUID = 'a3c87500-8ed3-4bdf-8a39-a01bebede295';
+  const BLE_STATUS_CHARACTERISTIC_UUID = 'a3c87501-8ed3-4bdf-8a39-a01bebede295';
+  const BLE_HISTORY_CHARACTERISTIC_UUID = 'a3c87502-8ed3-4bdf-8a39-a01bebede295';
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -684,6 +699,7 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
     installMessage: $('#install-message'),
     saveButton: $('#save-button'),
     refreshButton: $('#refresh-button'),
+    bluetoothConnectButton: $('#bluetooth-connect-button'),
     pageTitle: $('#page-title'),
     headingSection: $('#heading-section'),
     statusDots: $$('.status-dot'),
@@ -716,6 +732,15 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
     refreshing: false,
     refreshQueued: false,
     timer: null,
+    bluetoothDevice: null,
+    bluetoothCharacteristic: null,
+    bluetoothHistoryCharacteristic: null,
+    connectionType: 'network',
+    firebaseStatusSource: null,
+    firebaseHistorySource: null,
+    firebaseListenersStarted: false,
+    firebaseCurrentStatus: null,
+    firebaseHistoryRecords: new Map(),
   };
 
   let deferredInstallPrompt = null;
@@ -919,6 +944,7 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
       element.textContent = value === 'online' ? 'Reachable' :
         value === 'error' ? 'Error' :
           value === 'checking' ? 'Checking…' :
+            value === 'not-available' ? 'Not available in Bluetooth mode' :
             value === 'not-checked' ? 'Not checked' : 'Waiting';
       element.dataset.level = value;
     };
@@ -940,11 +966,18 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
   }
 
   function getApiRequestUrl(path, baseUrl) {
-    if (window.location.protocol === 'https:' && CLOUD_API_URL) {
-      const route = path === '/api/status' ? '/status' :
-        path === '/api/history' ? '/history' :
-          path === '/api/warning/stop' ? '/warning/stop' : path;
-      return `${CLOUD_API_URL}${route}`;
+    if (IS_FIREBASE_CLOUD_PAGE) {
+      if (path === '/api/status') {
+        return `${FIREBASE_DATABASE_URL}/sensor/latest.json`;
+      }
+      if (path === '/api/history') {
+        const query = new URLSearchParams({
+          orderBy: '"recordedAt"',
+          limitToLast: '500',
+        });
+        return `${FIREBASE_DATABASE_URL}/sensor/history.json?${query}`;
+      }
+      throw new Error('This action is not available from the public cloud dashboard.');
     }
 
     const isEsp32Dashboard =
@@ -960,19 +993,19 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
   }
 
   function getHttpsHttpMismatchMessage(baseUrl) {
-    if (window.location.protocol === 'https:' && !CLOUD_API_URL) {
-      return 'Public live readings are not configured yet. Set the Supabase HTTPS API URL in cloud-config.js and connect the ESP32 to internet-capable Wi-Fi.';
+    if (window.location.protocol === 'https:' && !FIREBASE_DATABASE_URL) {
+      return 'Public live readings are not configured yet. Add the Firebase Realtime Database URL to cloud-config.js and connect the ESP32 to internet-capable Wi-Fi.';
     }
-    if (window.location.protocol === 'https:' && CLOUD_API_URL) {
+    if (window.location.protocol === 'https:' && FIREBASE_DATABASE_URL) {
       try {
-        const cloudUrl = new URL(CLOUD_API_URL);
+        const cloudUrl = new URL(FIREBASE_DATABASE_URL);
         if (cloudUrl.protocol !== 'https:' || cloudUrl.username || cloudUrl.password ||
             cloudUrl.search || cloudUrl.hash) {
-          return 'The public sensor API must be a valid HTTPS Supabase Edge Function URL.';
+          return 'The Firebase Realtime Database URL must be a valid HTTPS URL.';
         }
         return '';
       } catch (_) {
-        return 'The public sensor API URL in cloud-config.js is invalid.';
+        return 'The Firebase Realtime Database URL in cloud-config.js is invalid.';
       }
     }
     try {
@@ -1013,8 +1046,17 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
       }
     });
 
+    elements.bluetoothConnectButton.textContent = state.connectionType === 'bluetooth' &&
+      state.bluetoothDevice?.gatt?.connected
+      ? 'Disconnect Bluetooth'
+      : 'Connect ESP32 via Bluetooth';
+    elements.bluetoothConnectButton.disabled = !navigator.bluetooth;
+    elements.bluetoothConnectButton.title = navigator.bluetooth
+      ? 'Connect directly to the ESP32 without Wi-Fi'
+      : 'Bluetooth connection requires Android Chrome over HTTPS';
     elements.stopWarningButton.hidden = !state.connected || !warning ||
-      (window.location.protocol === 'https:' && Boolean(CLOUD_API_URL));
+      state.connectionType === 'bluetooth' ||
+     IS_FIREBASE_CLOUD_PAGE;
     elements.stopWarningButton.disabled = state.stoppingWarning || state.warningSilenced;
     elements.stopWarningButton.textContent = state.stoppingWarning
       ? 'Stopping…'
@@ -1023,7 +1065,7 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
 
     if (!state.connected) {
       elements.connectionTitle.textContent = 'Monitor is offline';
-      elements.connectionMessage.textContent = 'Check that your phone is connected to the ESP32 Wi-Fi network.';
+      elements.connectionMessage.textContent = 'Tap “Connect ESP32 via Bluetooth” to connect directly without Wi-Fi.';
       elements.connectionState.textContent = 'OFFLINE';
       elements.sidebarStatus.textContent = 'Disconnected';
       elements.deviceHealthPill.textContent = 'OFFLINE';
@@ -1048,9 +1090,19 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
       elements.sensorHealthIcon.style.background = 'rgba(var(--warning-rgb), .1)';
       elements.sensorHealthIcon.style.color = 'var(--warning)';
     } else {
-      elements.connectionTitle.textContent = 'Your monitor is connected';
-      elements.connectionMessage.textContent = 'The ESP32-S3 is reporting data from the DHT22 sensor.';
-      elements.connectionState.textContent = 'ALL SYSTEMS GO';
+      elements.connectionTitle.textContent = state.connectionType === 'bluetooth'
+        ? 'Connected to ESP32 via Bluetooth'
+        : state.connectionType === 'cloud' ? 'Connected to cloud monitor'
+          : 'Your monitor is connected';
+      elements.connectionMessage.textContent = state.connectionType === 'bluetooth'
+        ? 'Live DHT22 readings are coming directly from the monitor. Cloud history is not available in Bluetooth mode.'
+        : state.connectionType === 'cloud'
+          ? 'Live readings are streaming from Firebase Realtime Database.'
+          : 'The ESP32-S3 is reporting data from the DHT22 sensor.';
+      elements.connectionState.textContent = state.connectionType === 'bluetooth'
+        ? 'BLUETOOTH'
+        : state.connectionType === 'cloud' ? 'CLOUD LIVE'
+          : 'ALL SYSTEMS GO';
       elements.sensorHealthPill.textContent = 'HEALTHY';
       elements.sensorHealthPill.className = 'health-pill online';
       elements.sensorHealthIcon.style.background = 'rgba(var(--ok-rgb), .12)';
@@ -1116,18 +1168,21 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
     if (!record || typeof record !== 'object' ||
         typeof record.temperature !== 'number' || !Number.isFinite(record.temperature) ||
         typeof record.humidity !== 'number' || !Number.isFinite(record.humidity)) {
-      throw new Error('ESP32 returned an invalid history record.');
+      throw new Error('The sensor API returned an invalid history record.');
     }
+    const recordedAt = typeof record.recordedAt === 'number' ||
+          typeof record.recordedAt === 'string'
+      ? new Date(record.recordedAt)
+      : null;
     return {
       temperature: record.temperature,
       humidity: record.humidity,
       elapsedMs: typeof record.elapsedMs === 'number' && Number.isFinite(record.elapsedMs)
-        ? record.elapsedMs
-        : null,
-      recordedAt: typeof record.recordedAt === 'string' &&
-          Number.isFinite(Date.parse(record.recordedAt))
-        ? record.recordedAt
-        : null,
+          ? record.elapsedMs
+          : null,
+      recordedAt: recordedAt && Number.isFinite(recordedAt.getTime())
+          ? recordedAt.toISOString()
+          : null,
     };
   }
 
@@ -1136,9 +1191,14 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
     elements.historyList.replaceChildren();
 
     if (state.history.length === 0) {
-      elements.recentList.innerHTML = '<div class="empty-state">No readings have been saved to the local SQL database yet.</div>';
-      elements.historyList.innerHTML = '<div class="empty-state">No readings have been saved to the local SQL database yet.</div>';
-      elements.historyChart.innerHTML = '<div class="chart-empty">The chart appears after sensor readings are saved in the local SQL database.</div>';
+      const emptyHistoryMessage = state.connectionType === 'bluetooth'
+        ? 'Bluetooth mode shows live readings only; history is not synced.'
+        : state.connectionType === 'cloud'
+          ? 'Waiting for the first Firebase cloud reading.'
+          : 'No readings have been saved to the local SQL database yet.';
+      elements.recentList.innerHTML = `<div class="empty-state">${emptyHistoryMessage}</div>`;
+      elements.historyList.innerHTML = `<div class="empty-state">${emptyHistoryMessage}</div>`;
+      elements.historyChart.innerHTML = `<div class="chart-empty">${emptyHistoryMessage}</div>`;
       elements.recordCount.innerHTML = '0 <small>records</small>';
       return;
     }
@@ -1195,24 +1255,233 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
         throw new Error(`HTTP ${response.status} for ${path}.${detail ? ` ${detail}` : ''}`);
       }
 
+      let data;
       try {
-        return await response.json();
+        data = await response.json();
       } catch (_) {
         throw new Error(`The monitor returned invalid JSON for ${path}.`);
       }
+
+      if (IS_FIREBASE_CLOUD_PAGE && path === '/api/status' && data === null) {
+        return {
+          temperature: null,
+          humidity: null,
+          sensorOK: false,
+          warning: WAITING_FOR_READING_MESSAGE,
+          recordedAt: null,
+        };
+      }
+      if (IS_FIREBASE_CLOUD_PAGE && path === '/api/history') {
+        if (data === null) return { history: [] };
+        if (!data || typeof data !== 'object') {
+          throw new Error('Firebase returned an invalid sensor history response.');
+        }
+        const history = Object.values(data).map(validateHistoryRecord);
+        history.sort((left, right) => {
+          const leftTime = left.recordedAt ? Date.parse(left.recordedAt) : 0;
+          const rightTime = right.recordedAt ? Date.parse(right.recordedAt) : 0;
+          return rightTime - leftTime;
+        });
+        return { history };
+      }
+      return data;
     } finally {
       window.clearTimeout(timeout);
     }
   }
 
+  function applyFirebaseStatus(status) {
+    state.connectionType = 'cloud';
+    if (status === null) {
+      state.connected = true;
+      state.sensorOK = false;
+      state.temperature = null;
+      state.humidity = null;
+      state.warning = WAITING_FOR_READING_MESSAGE;
+      state.activeWarningKey = state.warning;
+      state.warningSilenced = false;
+      state.lastUpdated = null;
+      state.statusApiState = 'online';
+      renderStatus();
+      renderReadings();
+      renderDiagnostics();
+      return;
+    }
+
+    applySensorStatus(status);
+    state.statusApiState = 'online';
+    state.lastError = '';
+    renderDiagnostics();
+  }
+
+  function handleFirebaseStatusEvent(event) {
+    const update = JSON.parse(event.data);
+    if (!update || typeof update.path !== 'string') {
+      throw new Error('Firebase sent an invalid live status event.');
+    }
+
+    const segments = update.path.split('/').filter(Boolean);
+    if (segments.length === 0) {
+      if (event.type === 'patch' && update.data && typeof update.data === 'object') {
+        state.firebaseCurrentStatus = {
+          ...(state.firebaseCurrentStatus || {}),
+          ...update.data,
+        };
+      } else {
+        state.firebaseCurrentStatus = update.data;
+      }
+    } else {
+      const current = state.firebaseCurrentStatus || {};
+      if (segments.length === 1) {
+        if (update.data === null) delete current[segments[0]];
+        else current[segments[0]] = update.data;
+      }
+      state.firebaseCurrentStatus = current;
+    }
+
+    applyFirebaseStatus(state.firebaseCurrentStatus);
+  }
+
+  function renderFirebaseHistory() {
+    const history = Array.from(state.firebaseHistoryRecords.values())
+      .map(validateHistoryRecord);
+    history.sort((left, right) => {
+      const leftTime = left.recordedAt ? Date.parse(left.recordedAt) : 0;
+      const rightTime = right.recordedAt ? Date.parse(right.recordedAt) : 0;
+      return rightTime - leftTime;
+    });
+    state.history = history.slice(0, 500);
+    state.historyApiState = 'online';
+    renderHistory();
+    renderDiagnostics();
+  }
+
+  function handleFirebaseHistoryEvent(event) {
+    const update = JSON.parse(event.data);
+    if (!update || typeof update.path !== 'string') {
+      throw new Error('Firebase sent an invalid live history event.');
+    }
+
+    const segments = update.path.split('/').filter(Boolean);
+    if (segments.length === 0) {
+      if (event.type === 'put' || update.data === null) {
+        state.firebaseHistoryRecords.clear();
+      }
+      if (update.data && typeof update.data === 'object') {
+        for (const [key, record] of Object.entries(update.data)) {
+          if (record === null) state.firebaseHistoryRecords.delete(key);
+          else state.firebaseHistoryRecords.set(key, record);
+        }
+      }
+    } else {
+      const key = segments[0];
+      if (segments.length === 1) {
+        if (update.data === null) state.firebaseHistoryRecords.delete(key);
+        else state.firebaseHistoryRecords.set(key, update.data);
+      } else if (update.data === null) {
+        state.firebaseHistoryRecords.delete(key);
+      } else {
+        const record = state.firebaseHistoryRecords.get(key) || {};
+        let target = record;
+        for (const segment of segments.slice(1, -1)) {
+          target[segment] = target[segment] || {};
+          target = target[segment];
+        }
+        target[segments[segments.length - 1]] = update.data;
+        state.firebaseHistoryRecords.set(key, record);
+      }
+    }
+
+    renderFirebaseHistory();
+  }
+
+  function startFirebaseListeners() {
+    if (!IS_FIREBASE_CLOUD_PAGE || typeof EventSource !== 'function') return false;
+    try {
+      const databaseUrl = new URL(FIREBASE_DATABASE_URL);
+      if (databaseUrl.protocol !== 'https:' || databaseUrl.username ||
+          databaseUrl.password || databaseUrl.search || databaseUrl.hash) {
+        return false;
+      }
+    } catch (_) {
+      return false;
+    }
+
+    state.firebaseListenersStarted = true;
+    state.connectionType = 'cloud';
+    state.statusApiState = 'checking';
+    state.historyApiState = 'checking';
+    renderDiagnostics();
+
+    state.firebaseStatusSource = new EventSource(
+      `${FIREBASE_DATABASE_URL}/sensor/latest.json`,
+    );
+    state.firebaseHistorySource = new EventSource(
+      getApiRequestUrl('/api/history', state.deviceUrl),
+    );
+
+    const attachStream = (source, handler, label, setStatus) => {
+      for (const type of ['put', 'patch']) {
+        source.addEventListener(type, (event) => {
+          try {
+            handler(event);
+            if (state.statusApiState === 'online' &&
+                state.historyApiState === 'online') {
+              state.lastError = '';
+            }
+          } catch (error) {
+            console.error(`Could not process Firebase ${label}:`, error);
+            setStatus('error');
+            state.lastError = `Firebase ${label}: ${describeConnectionError(error)}`;
+            renderDiagnostics();
+          }
+        });
+      }
+      source.addEventListener('cancel', () => {
+        setStatus('error');
+        state.lastError = `Firebase ${label} stream was rejected by the database rules.`;
+        renderDiagnostics();
+      });
+      source.onerror = () => {
+        setStatus('error');
+        state.lastError = `Firebase ${label} stream disconnected; waiting to reconnect.`;
+        renderDiagnostics();
+      };
+    };
+
+    attachStream(state.firebaseStatusSource, handleFirebaseStatusEvent, 'status', (value) => {
+      state.statusApiState = value;
+    });
+    attachStream(state.firebaseHistorySource, handleFirebaseHistoryEvent, 'history', (value) => {
+      state.historyApiState = value;
+    });
+    return true;
+  }
+
+  function stopFirebaseListeners() {
+    state.firebaseStatusSource?.close();
+    state.firebaseHistorySource?.close();
+    state.firebaseStatusSource = null;
+    state.firebaseHistorySource = null;
+    state.firebaseListenersStarted = false;
+  }
+
   function describeConnectionError(error) {
     if (error && error.name === 'AbortError') {
-      return 'The ESP32 did not respond in time. Check the Wi-Fi connection and try again.';
+      return IS_FIREBASE_CLOUD_PAGE
+        ? 'Firebase did not respond in time. Check the internet connection and try again.'
+        : 'The ESP32 did not respond in time. Check the Wi-Fi connection and try again.';
     }
     if (error instanceof TypeError) {
-      return 'The browser could not reach the ESP32. If this page is hosted elsewhere, check that the ESP32 allows CORS requests.';
+      return IS_FIREBASE_CLOUD_PAGE
+        ? 'The browser could not reach Firebase Realtime Database. Check the internet connection and database rules.'
+        : 'The browser could not reach the ESP32. If this page is hosted elsewhere, check that the ESP32 allows CORS requests.';
     }
-    return error instanceof Error ? error.message : 'Could not load data from the ESP32.';
+    return error instanceof Error
+      ? error.message
+      : IS_FIREBASE_CLOUD_PAGE
+        ? 'Could not load sensor data from Firebase.'
+        : 'Could not load data from the ESP32.';
   }
 
   function getActiveWarning() {
@@ -1228,7 +1497,8 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
   }
 
   async function stopHardwareWarning() {
-    if (state.stoppingWarning || state.warningSilenced || !state.connected || !getActiveWarning()) {
+    if (IS_FIREBASE_CLOUD_PAGE || state.connectionType === 'bluetooth' || state.stoppingWarning ||
+        state.warningSilenced || !state.connected || !getActiveWarning()) {
       return;
     }
 
@@ -1260,7 +1530,202 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
     }
   }
 
+  function applySensorStatus(status) {
+    const hasValidReadings = typeof status?.temperature === 'number' &&
+      Number.isFinite(status.temperature) &&
+      typeof status?.humidity === 'number' &&
+      Number.isFinite(status.humidity);
+    const hasUnavailableReadings = status?.sensorOK === false &&
+      status.temperature === null && status.humidity === null;
+    if (!status || typeof status !== 'object' ||
+        (!hasValidReadings && !hasUnavailableReadings)) {
+      throw new Error('The monitor returned an invalid sensor status response.');
+    }
+
+    const previousWarningKey = state.activeWarningKey;
+    state.temperature = hasValidReadings ? status.temperature : null;
+    state.humidity = hasValidReadings ? status.humidity : null;
+    state.sensorOK = status.sensorOK === true;
+    if (typeof status.warning === 'string') {
+      state.warning = status.warning.trim();
+    } else if (status.warning === true) {
+      state.warning = 'The hardware has reported a warning.';
+    } else if (status.warning === false || status.warning == null) {
+      state.warning = '';
+    } else {
+      throw new Error('The ESP32 returned an invalid hardware warning value.');
+    }
+    const activeWarning = getActiveWarning();
+    if (activeWarning !== previousWarningKey) {
+      state.warningSilenced = false;
+      state.warningActionMessage = '';
+      state.activeWarningKey = activeWarning;
+      if (activeWarning && activeWarning !== WAITING_FOR_READING_MESSAGE) {
+        vibrateForWarning();
+      }
+    }
+    state.connected = true;
+    if (status.recordedAt === undefined) {
+      state.lastUpdated = new Date();
+    } else {
+      const recordedAt = new Date(status.recordedAt);
+      state.lastUpdated = Number.isFinite(recordedAt.getTime()) ? recordedAt : null;
+    }
+    state.statusApiState = 'online';
+    renderStatus();
+    renderReadings();
+  }
+
+  async function connectBluetooth() {
+    if (!navigator.bluetooth) {
+      showMessage('Bluetooth is not available here. Open this page in Android Chrome over HTTPS.', 'error');
+      return;
+    }
+
+    if (state.bluetoothDevice?.gatt?.connected) {
+      state.bluetoothDevice.gatt.disconnect();
+      return;
+    }
+
+    elements.bluetoothConnectButton.disabled = true;
+    elements.bluetoothConnectButton.textContent = 'Connecting…';
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: 'PoultryMonitor' }],
+        optionalServices: [BLE_SERVICE_UUID],
+      });
+      device.addEventListener('gattserverdisconnected', () => {
+        if (state.bluetoothDevice !== device) return;
+        state.bluetoothDevice = null;
+        state.bluetoothCharacteristic = null;
+        state.bluetoothHistoryCharacteristic = null;
+        state.connectionType = IS_FIREBASE_CLOUD_PAGE ? 'cloud' : 'network';
+        state.connected = false;
+        state.sensorOK = false;
+        state.statusApiState = 'error';
+        state.historyApiState = 'waiting';
+        state.lastError = 'Bluetooth connection to the ESP32 was lost.';
+        renderStatus();
+        renderDiagnostics();
+        if (IS_FIREBASE_CLOUD_PAGE) {
+          startFirebaseListeners();
+          refreshData();
+        }
+      }, { once: true });
+
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+      state.bluetoothCharacteristic = await service.getCharacteristic(
+        BLE_STATUS_CHARACTERISTIC_UUID,
+      );
+      try {
+        state.bluetoothHistoryCharacteristic = await service.getCharacteristic(
+          BLE_HISTORY_CHARACTERISTIC_UUID,
+        );
+      } catch (error) {
+        console.warn('ESP32 Bluetooth history is unavailable; update the firmware to restore device history.', error);
+        state.bluetoothHistoryCharacteristic = null;
+      }
+      state.bluetoothDevice = device;
+      state.connectionType = 'bluetooth';
+      stopFirebaseListeners();
+      state.history = [];
+      state.historyApiState = state.bluetoothHistoryCharacteristic
+        ? 'checking'
+        : 'not-available';
+      state.lastError = '';
+      renderHistory();
+      await refreshData();
+    } catch (error) {
+      console.error('Could not connect to the ESP32 over Bluetooth:', error);
+      const message = error?.name === 'NotFoundError'
+        ? 'Bluetooth device selection was cancelled or the monitor was not found.'
+        : error instanceof Error ? error.message : 'Could not connect to the ESP32 over Bluetooth.';
+      state.lastError = message;
+      state.statusApiState = 'error';
+      state.historyApiState = 'not-available';
+      elements.connectionMessage.textContent = message;
+      renderDiagnostics();
+    } finally {
+      elements.bluetoothConnectButton.disabled = !navigator.bluetooth;
+      renderStatus();
+    }
+  }
+
+  async function refreshBluetoothData() {
+    if (!state.bluetoothCharacteristic) return;
+    if (state.refreshing) {
+      state.refreshQueued = true;
+      return;
+    }
+    state.refreshing = true;
+    elements.refreshButton.classList.add('busy');
+    elements.refreshButton.disabled = true;
+    state.lastAttemptAt = new Date();
+    state.statusApiState = 'checking';
+    state.historyApiState = state.bluetoothHistoryCharacteristic ? 'checking' : 'error';
+    state.lastError = '';
+    renderDiagnostics();
+    try {
+      const value = await state.bluetoothCharacteristic.readValue();
+      const status = JSON.parse(new TextDecoder().decode(value));
+      applySensorStatus(status);
+      if (state.bluetoothHistoryCharacteristic) {
+        try {
+          const historyValue = await state.bluetoothHistoryCharacteristic.readValue();
+          const historyResponse = JSON.parse(new TextDecoder().decode(historyValue));
+          if (!historyResponse || !Array.isArray(historyResponse.history)) {
+            throw new Error('ESP32 returned an invalid Bluetooth history response.');
+          }
+          state.history = historyResponse.history.map((record) => {
+            if (!Array.isArray(record) || record.length !== 3) return record;
+            return {
+              temperature: record[0],
+              humidity: record[1],
+              elapsedMs: typeof record[2] === 'number' ? record[2] * 1000 : null,
+            };
+          }).map(validateHistoryRecord).reverse();
+          state.historyApiState = 'online';
+          renderHistory();
+        } catch (error) {
+          console.error('Could not restore sensor history over Bluetooth:', error);
+          state.historyApiState = 'error';
+          state.lastError = `Bluetooth history: ${describeConnectionError(error)}`;
+        }
+      } else {
+        state.historyApiState = 'not-available';
+      }
+    } catch (error) {
+      console.error('Could not read sensor status over Bluetooth:', error);
+      state.connected = false;
+      state.sensorOK = false;
+      state.statusApiState = 'error';
+      state.lastError = error instanceof Error
+        ? `Bluetooth status: ${error.message}`
+        : 'Could not read sensor status over Bluetooth.';
+      elements.connectionMessage.textContent = state.lastError;
+      renderStatus();
+      renderReadings();
+    } finally {
+      renderHistory();
+      renderDiagnostics();
+      state.refreshing = false;
+      elements.refreshButton.classList.remove('busy');
+      elements.refreshButton.disabled = false;
+      if (state.refreshQueued) {
+        state.refreshQueued = false;
+        window.setTimeout(refreshData, 0);
+      }
+    }
+  }
+
   async function refreshData() {
+    if (state.bluetoothCharacteristic) {
+      await refreshBluetoothData();
+      return;
+    }
+    if (IS_FIREBASE_CLOUD_PAGE) state.connectionType = 'cloud';
+
     if (state.refreshing) {
       state.refreshQueued = true;
       return;
@@ -1293,43 +1758,8 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
     const errors = [];
     try {
       const status = await requestJson('/api/status', requestedUrl);
-      const hasValidReadings = typeof status?.temperature === 'number' &&
-        Number.isFinite(status.temperature) &&
-        typeof status?.humidity === 'number' &&
-        Number.isFinite(status.humidity);
-      const hasUnavailableReadings = status?.sensorOK === false &&
-        status.temperature === null && status.humidity === null;
-      if (!status || typeof status !== 'object' ||
-          (!hasValidReadings && !hasUnavailableReadings)) {
-        throw new Error('The ESP32 returned an invalid sensor status response.');
-      }
-
       if (requestedUrl !== state.deviceUrl) return;
-      const previousWarningKey = state.activeWarningKey;
-      state.temperature = hasValidReadings ? status.temperature : null;
-      state.humidity = hasValidReadings ? status.humidity : null;
-      state.sensorOK = status.sensorOK === true;
-      if (typeof status.warning === 'string') {
-        state.warning = status.warning.trim();
-      } else if (status.warning === true) {
-        state.warning = 'The hardware has reported a warning.';
-      } else if (status.warning === false || status.warning == null) {
-        state.warning = '';
-      } else {
-        throw new Error('The ESP32 returned an invalid hardware warning value.');
-      }
-      const activeWarning = getActiveWarning();
-      if (activeWarning !== previousWarningKey) {
-        state.warningSilenced = false;
-        state.warningActionMessage = '';
-        state.activeWarningKey = activeWarning;
-        if (activeWarning) vibrateForWarning();
-      }
-      state.connected = true;
-      state.lastUpdated = new Date();
-      state.statusApiState = 'online';
-      renderStatus();
-      renderReadings();
+      applySensorStatus(status);
     } catch (error) {
       console.error('Could not load sensor status:', error);
       if (requestedUrl === state.deviceUrl) {
@@ -1430,6 +1860,7 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
       });
     });
     elements.refreshButton.addEventListener('click', refreshData);
+    elements.bluetoothConnectButton.addEventListener('click', connectBluetooth);
     elements.stopWarningButton.addEventListener('click', stopHardwareWarning);
     elements.settingsForm.addEventListener('submit', saveDeviceAddress);
     elements.darkModeToggle.addEventListener('change', saveThemePreference);
@@ -1441,8 +1872,19 @@ static const char DASHBOARD_JS[] PROGMEM = R"PMJS((() => {
     renderStatus();
     renderReadings();
     renderHistory();
+    startFirebaseListeners();
     refreshData();
-    state.timer = window.setInterval(refreshData, REFRESH_INTERVAL_MS);
+    state.timer = window.setInterval(
+      () => {
+        if (state.firebaseListenersStarted) {
+          renderStatus();
+          renderReadings();
+        } else {
+          refreshData();
+        }
+      },
+      REFRESH_INTERVAL_MS,
+    );
   }
 
   initialize();

@@ -67,8 +67,8 @@ download the app shell. Its dashboard files can then open offline. Bluetooth
 live readings need the ESP32 and Android Chrome; local SQL history still needs
 the ESP32 and local server.
 
-The public GitHub Pages copy can show live readings through Bluetooth or the
-public cloud API configured below. Use Android Chrome over HTTPS for Bluetooth.
+The public GitHub Pages copy can show live readings through Bluetooth or
+Firebase Realtime Database. Use Android Chrome over HTTPS for Bluetooth.
 
 ## Open on a phone
 
@@ -105,43 +105,32 @@ Source: GitHub Actions**). After the workflow succeeds, this public link opens
 the installable dashboard UI on a phone.
 
 GitHub Pages is static HTTPS hosting; it cannot reach the ESP32's local HTTP
-address or this computer's SQLite database. The Supabase integration in
-`supabase/` provides a public HTTPS read API and a token-protected sensor
-ingest endpoint. The dashboard is configured for the Supabase project URL
-provided for this setup. To activate the API:
+address or this computer's SQLite database. The Firebase project, Realtime
+Database, Web app, and Email/Password device identity are configured for this
+monitor. `cloud-config.js` contains public Firebase client configuration only;
+it contains no device password or service-account key.
 
-1. In that Supabase project's SQL Editor, run the SQL in
-   `supabase/migrations/20261110000000_create_sensor_readings.sql`, or link
-   the project and run `supabase db push`.
-2. Deploy the Edge Function with the Supabase CLI:
+The database stores the current reading at `/sensor/latest` and a rotating
+history of the latest 500 valid readings at `/sensor/history`. The dashboard
+subscribes to Firebase's HTTPS event stream, so new readings appear without
+reloading the page. History uses server-generated timestamps. The database
+rules allow public reads only for these sensor paths; writes are limited to
+the configured device identity, and all other database paths remain locked.
+The device identity password is stored only in the ignored local
+`wifi_secrets.h` file.
 
-   ```powershell
-   supabase link --project-ref nwdnkasjrucrpysbjbcc
-   supabase functions deploy poultry-monitor
-   ```
+To set up or restore the firmware:
 
-3. Generate a 32-byte device token locally in PowerShell:
-
-   ```powershell
-   $bytes = New-Object byte[] 32
-   $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
-   $rng.GetBytes($bytes)
-   $token = ($bytes | ForEach-Object { $_.ToString('x2') }) -join ''
-   ```
-
-   Configure the token as the Supabase function secret named
-   `DEVICE_INGEST_TOKEN` (Supabase Dashboard → Edge Functions → Secrets).
-   Keep the token private; do not paste it into chat or commit it.
-4. The public API URL is already set in `cloud-config.js` and the local ESP32
-   secrets template. It is public configuration, not a secret.
-5. Copy `firmware/sketch_oct26a/wifi_secrets.example.h` to
-   `firmware/sketch_oct26a/wifi_secrets.h` (or to the local sketch folder) and
-   set the router Wi-Fi name and password, plus `DEVICE_INGEST_TOKEN` to the
-   same token configured in Supabase. Do not commit or share this private
-   file. The firmware keeps the `PoultryMonitor` access point active while
-   connecting to the router to upload sensor readings every 10 seconds over
-   verified HTTPS.
-6. Compile and upload the sketch to the ESP32-S3. Push dashboard changes to
+1. Copy `firmware/sketch_oct26a/wifi_secrets.example.h` to
+   `C:\Arduino\sketch_oct26a\wifi_secrets.h` if the local secrets file does not
+   already exist. Set the router Wi-Fi name and password and the Firebase
+   device email/password. The Firebase API key and database URL are public
+   configuration. Do not commit or share `wifi_secrets.h`.
+2. Keep the ESP32 connected to internet-capable router Wi-Fi. Its
+   `PoultryMonitor` access point remains active for local access while the
+   device uploads to Firebase over certificate-verified HTTPS every 10
+   seconds.
+3. Compile and upload the sketch to the ESP32-S3. Push dashboard changes to
    `main` and wait for the Pages deployment to succeed.
 
 If Arduino reports that the sketch exceeds the default 1.2MB app partition,
@@ -150,34 +139,37 @@ before compiling. This provides a 3MB app partition for the dashboard assets;
 it disables OTA firmware updates, so upload over USB.
 
 The GitHub Pages dashboard reads the latest public status and up to 500 public
-history records from the Edge Function. Only sensor measurements, warning
-state, and timestamps are exposed; the database service-role key stays on
-Supabase. The phone needs its own internet connection to open GitHub Pages and
-the public API. Connecting to the ESP32 access point alone does not provide
-internet to the phone; the local dashboard at `http://192.168.4.1/` continues
-to work on that Wi-Fi without cloud access. Remote alarm control is not
-available from the public cloud dashboard.
+history records from Firebase. The Firebase Web API key is public client
+configuration; the device password and ID token are never placed in the
+dashboard or repository. The phone needs its own internet connection to open
+GitHub Pages and Firebase. Connecting to the ESP32 access point alone does not
+provide internet to the phone; the local dashboard at `http://192.168.4.1/`
+continues to work on that Wi-Fi without cloud access. Remote alarm control is
+not available from the public cloud dashboard.
 
 ## Live readings over Bluetooth
 
 The ESP32-S3 firmware also advertises a Bluetooth Low Energy (BLE) service.
 On an Android phone, open the GitHub Pages dashboard in Chrome over HTTPS, tap
 **Connect ESP32 via Bluetooth**, and choose **PoultryMonitor**. Chrome reads the
-live sensor status directly from the ESP32 every three seconds. The phone can
-keep mobile data enabled while its Wi-Fi and hotspot are off; Bluetooth mode
-does not require the phone to join an ESP32 or router Wi-Fi network.
+live sensor status directly from the ESP32 every three seconds and restores the
+saved sensor history from the monitor's Bluetooth history characteristic. The
+phone can keep mobile data enabled while its Wi-Fi and hotspot are off;
+Bluetooth mode does not require the phone to join an ESP32 or router Wi-Fi
+network.
 
-Bluetooth mode provides live readings only. It does not upload to Supabase or
-save cloud history while the ESP32 has no internet connection. If the page was
-not installed or cached already, mobile data is needed to load GitHub Pages.
+Bluetooth mode displays history currently stored by the ESP32, but does not
+upload new readings to Firebase while the ESP32 has no internet connection. If
+the page was not installed or cached already, mobile data is needed to load
+GitHub Pages.
 Use Android Chrome over HTTPS; the browser-hosted Bluetooth connection is not
 available from the ESP32's plain-HTTP dashboard or Safari on iPhone.
 
-Until the migration and Edge Function are deployed and the device token and
-router Wi-Fi settings are configured, public cloud readings will not be
-available. Bluetooth live readings do not depend on those cloud settings. Do not
-put database service-role keys, router Wi-Fi passwords, or device tokens in this
-public repository.
+Firebase cloud readings require the ESP32's router Wi-Fi and local device
+credentials to be configured. Bluetooth live readings do not depend on those
+cloud settings. The legacy `supabase/` files are not used by the current
+dashboard or firmware. Do not put Firebase device passwords, router Wi-Fi
+passwords, ID tokens, or service-account credentials in this public repository.
 
 ## API format
 
