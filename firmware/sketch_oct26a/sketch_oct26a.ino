@@ -1193,6 +1193,7 @@ void updateBleSensorHistory() {
 void startBluetoothService() {
   BLEDevice::init("PoultryMonitor");
   BLEServer* bleServer = BLEDevice::createServer();
+  bleServer->advertiseOnDisconnect(true);
   BLEService* service = bleServer->createService(BLE_SERVICE_UUID);
   bleStatusCharacteristic = service->createCharacteristic(
     BLE_STATUS_CHARACTERISTIC_UUID,

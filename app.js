@@ -111,6 +111,7 @@
     firebaseListenersStarted: false,
     firebaseCurrentStatus: null,
     firebaseHistoryRecords: new Map(),
+    bluetoothReadyForReconnect: false,
   };
 
   let deferredInstallPrompt = null;
@@ -426,7 +427,7 @@
       : 'Bluetooth connection requires Android Chrome over HTTPS';
     elements.stopWarningButton.hidden = !state.connected || !warning ||
       state.connectionType === 'bluetooth' ||
-     IS_FIREBASE_CLOUD_PAGE;
+      IS_FIREBASE_CLOUD_PAGE;
     elements.stopWarningButton.disabled = state.stoppingWarning || state.warningSilenced;
     elements.stopWarningButton.textContent = state.stoppingWarning
       ? 'Stopping…'
@@ -435,7 +436,9 @@
 
     if (!state.connected) {
       elements.connectionTitle.textContent = 'Monitor is offline';
-      elements.connectionMessage.textContent = 'Tap “Connect ESP32 via Bluetooth” to connect directly without Wi-Fi.';
+      elements.connectionMessage.textContent = state.bluetoothReadyForReconnect
+        ? 'Bluetooth disconnected. The ESP32 is ready; tap Connect ESP32 via Bluetooth to connect again or choose another device.'
+        : 'Tap “Connect ESP32 via Bluetooth” to connect directly without Wi-Fi.';
       elements.connectionState.textContent = 'OFFLINE';
       elements.sidebarStatus.textContent = 'Disconnected';
       elements.deviceHealthPill.textContent = 'OFFLINE';
@@ -957,6 +960,7 @@
       return;
     }
 
+    state.bluetoothReadyForReconnect = false;
     elements.bluetoothConnectButton.disabled = true;
     elements.bluetoothConnectButton.textContent = 'Connecting…';
     try {
@@ -969,6 +973,7 @@
         state.bluetoothDevice = null;
         state.bluetoothCharacteristic = null;
         state.bluetoothHistoryCharacteristic = null;
+        state.bluetoothReadyForReconnect = true;
         state.connectionType = IS_FIREBASE_CLOUD_PAGE ? 'cloud' : 'network';
         state.connected = false;
         state.sensorOK = false;
@@ -997,6 +1002,7 @@
         state.bluetoothHistoryCharacteristic = null;
       }
       state.bluetoothDevice = device;
+      state.bluetoothReadyForReconnect = false;
       state.connectionType = 'bluetooth';
       stopFirebaseListeners();
       state.history = [];

@@ -157,6 +157,10 @@ saved sensor history from the monitor's Bluetooth history characteristic. The
 phone can keep mobile data enabled while its Wi-Fi and hotspot are off;
 Bluetooth mode does not require the phone to join an ESP32 or router Wi-Fi
 network.
+When a phone disconnects, the ESP32 automatically resumes BLE advertising so
+another phone can connect without restarting the monitor. On the next phone,
+tap **Connect ESP32 via Bluetooth** and select **PoultryMonitor**; browsers
+require this tap before showing the Bluetooth device chooser.
 
 Bluetooth mode displays history currently stored by the ESP32, but does not
 upload new readings to Firebase while the ESP32 has no internet connection. If
