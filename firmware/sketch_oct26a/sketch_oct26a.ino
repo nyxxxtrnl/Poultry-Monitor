@@ -117,6 +117,8 @@ String firebaseIdToken;
 uint16_t firebaseHistoryIndex = 0;
 bool networkTimeSyncStarted = false;
 bool networkTimeWarningShown = false;
+uint32_t firebaseNextHistorySequence = 0;
+uint32_t firebaseNextHistoryUpload = 0;
 
 // =====================================================
 // 3. SENSOR AND ALARM SETTINGS
@@ -172,6 +174,7 @@ struct SensorRecord {
   float temperature;
   float humidity;
   unsigned long elapsedSec;
+  uint32_t cloudSequence;
 };
 
 const int MAX_HISTORY = 10;
@@ -236,6 +239,7 @@ void saveHistoryToMemory() {
     item["temperature"] = historyData[i].temperature;
     item["humidity"] = historyData[i].humidity;
     item["elapsedSec"] = historyData[i].elapsedSec;
+    item["cloudSequence"] = historyData[i].cloudSequence;
   }
 
   String output;
@@ -245,6 +249,15 @@ void saveHistoryToMemory() {
 }
 
 void loadHistory() {
+  const bool hasCloudSequence = preferences.isKey("cloud_seq");
+  firebaseNextHistorySequence = preferences.getUInt(
+    "cloud_seq",
+    preferences.getUInt("cloud_idx", 0)
+  );
+  firebaseNextHistoryUpload = preferences.getUInt(
+    "cloud_sent",
+    firebaseNextHistorySequence
+  );
   String saved = preferences.getString("history", "[]");
 
   DynamicJsonDocument doc(4096);
@@ -259,6 +272,7 @@ void loadHistory() {
   JsonArray arr = doc.as<JsonArray>();
 
   historyCount = 0;
+  bool migratedHistory = false;
 
   for (JsonObject item : arr) {
     if (historyCount >= MAX_HISTORY) break;
@@ -271,8 +285,23 @@ void loadHistory() {
 
     historyData[historyCount].elapsedSec =
       item["elapsedSec"] | 0UL;
+    if (hasCloudSequence && item["cloudSequence"].is<uint32_t>()) {
+      historyData[historyCount].cloudSequence = item["cloudSequence"].as<uint32_t>();
+    } else {
+      historyData[historyCount].cloudSequence = firebaseNextHistorySequence++;
+      migratedHistory = true;
+    }
 
     historyCount++;
+  }
+
+  if (!hasCloudSequence || migratedHistory) {
+    firebaseNextHistoryUpload = historyCount > 0
+      ? historyData[0].cloudSequence
+      : firebaseNextHistorySequence;
+    preferences.putUInt("cloud_seq", firebaseNextHistorySequence);
+    preferences.putUInt("cloud_sent", firebaseNextHistoryUpload);
+    saveHistoryToMemory();
   }
 }
 
@@ -283,6 +312,7 @@ void addHistoryRecord() {
     historyData[historyCount].temperature = tempC;
     historyData[historyCount].humidity = humidity;
     historyData[historyCount].elapsedSec = millis() / 1000UL;
+    historyData[historyCount].cloudSequence = firebaseNextHistorySequence++;
 
     historyCount++;
   } else {
@@ -293,8 +323,10 @@ void addHistoryRecord() {
     historyData[MAX_HISTORY - 1].temperature = tempC;
     historyData[MAX_HISTORY - 1].humidity = humidity;
     historyData[MAX_HISTORY - 1].elapsedSec = millis() / 1000UL;
+    historyData[MAX_HISTORY - 1].cloudSequence = firebaseNextHistorySequence++;
   }
 
+  preferences.putUInt("cloud_seq", firebaseNextHistorySequence);
   saveHistoryToMemory();
 }
 
@@ -1082,7 +1114,7 @@ bool signInToFirebase() {
   return true;
 }
 
-bool putFirebaseJson(const String& path, const String& payload) {
+bool writeFirebaseJson(const String& path, const String& payload, const char* method) {
   String endpoint = String(FIREBASE_DATABASE_URL);
   while (endpoint.endsWith("/")) endpoint.remove(endpoint.length() - 1);
   endpoint += path;
@@ -1099,7 +1131,7 @@ bool putFirebaseJson(const String& path, const String& payload) {
   http.setTimeout(8000);
   http.addHeader("Content-Type", "application/json");
 
-  const int statusCode = http.PUT(payload);
+  const int statusCode = http.sendRequest(method, payload);
   if (statusCode < 200 || statusCode >= 300) {
     Serial.printf("Firebase sensor upload failed (HTTP %d).\n", statusCode);
     if (statusCode == 401 || statusCode == 403) {
@@ -1111,6 +1143,14 @@ bool putFirebaseJson(const String& path, const String& payload) {
   }
   http.end();
   return true;
+}
+
+bool putFirebaseJson(const String& path, const String& payload) {
+  return writeFirebaseJson(path, payload, "PUT");
+}
+
+bool patchFirebaseJson(const String& path, const String& payload) {
+  return writeFirebaseJson(path, payload, "PATCH");
 }
 
 void uploadReadingToCloud() {
@@ -1140,14 +1180,39 @@ void uploadReadingToCloud() {
   JsonObject timestamp = doc.createNestedObject("recordedAt");
   timestamp[".sv"] = "timestamp";
 
-  String payload;
-  serializeJson(doc, payload);
-  if (!putFirebaseJson("/sensor/latest", payload) || !sensorOK) return;
+  String latestPayload;
+  serializeJson(doc, latestPayload);
+  if (!putFirebaseJson("/sensor/latest", latestPayload)) return;
 
-  String historyPath = "/sensor/history/";
-  historyPath += String(firebaseHistoryIndex);
-  if (putFirebaseJson(historyPath, payload)) {
-    firebaseHistoryIndex = (firebaseHistoryIndex + 1) % FIREBASE_HISTORY_CAPACITY;
+  DynamicJsonDocument historyUpdates(4096);
+  uint32_t lastUploadedSequence = firebaseNextHistoryUpload;
+  bool hasPendingHistory = false;
+  for (int i = 0; i < historyCount; i++) {
+    const uint32_t sequence = historyData[i].cloudSequence;
+    if (sequence < firebaseNextHistoryUpload) continue;
+
+    String key = String(sequence % FIREBASE_HISTORY_CAPACITY);
+    JsonObject historyRecord = historyUpdates.createNestedObject(key.c_str());
+    historyRecord["sensorOK"] = true;
+    historyRecord["temperature"] = historyData[i].temperature;
+    historyRecord["humidity"] = historyData[i].humidity;
+    historyRecord["deviceSequence"] = sequence;
+    historyRecord["warning"] = nullptr;
+    JsonObject historyTimestamp = historyRecord.createNestedObject("recordedAt");
+    historyTimestamp[".sv"] = "timestamp";
+
+    lastUploadedSequence = sequence;
+    hasPendingHistory = true;
+  }
+
+  if (!hasPendingHistory) return;
+
+  String historyPayload;
+  serializeJson(historyUpdates, historyPayload);
+  if (patchFirebaseJson("/sensor/history", historyPayload)) {
+    firebaseNextHistoryUpload = lastUploadedSequence + 1;
+    firebaseHistoryIndex = firebaseNextHistoryUpload % FIREBASE_HISTORY_CAPACITY;
+    preferences.putUInt("cloud_sent", firebaseNextHistoryUpload);
     preferences.putUInt("cloud_idx", firebaseHistoryIndex);
   }
 }
@@ -1183,6 +1248,7 @@ void updateBleSensorHistory() {
     record.add(historyData[i].temperature);
     record.add(historyData[i].humidity);
     record.add(historyData[i].elapsedSec);
+    record.add(historyData[i].cloudSequence);
   }
 
   String payload;

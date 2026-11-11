@@ -94,6 +94,7 @@
     temperature: null,
     humidity: null,
     history: [],
+    bluetoothHistory: [],
     lastUpdated: null,
     lastAttemptAt: null,
     statusApiState: 'waiting',
@@ -468,7 +469,7 @@
         : state.connectionType === 'cloud' ? 'Connected to cloud monitor'
           : 'Your monitor is connected';
       elements.connectionMessage.textContent = state.connectionType === 'bluetooth'
-        ? 'Live DHT22 readings are coming directly from the monitor. Cloud history is not available in Bluetooth mode.'
+        ? 'Live DHT22 readings and saved history are refreshing from the monitor over Bluetooth. Cloud history continues syncing when the monitor has internet.'
         : state.connectionType === 'cloud'
           ? 'Live readings are streaming from Firebase Realtime Database.'
           : 'The ESP32-S3 is reporting data from the DHT22 sensor.';
@@ -553,6 +554,9 @@
       elapsedMs: typeof record.elapsedMs === 'number' && Number.isFinite(record.elapsedMs)
           ? record.elapsedMs
           : null,
+      deviceSequence: Number.isSafeInteger(record.deviceSequence) && record.deviceSequence >= 0
+        ? record.deviceSequence
+        : null,
       recordedAt: recordedAt && Number.isFinite(recordedAt.getTime())
           ? recordedAt.toISOString()
           : null,
@@ -565,7 +569,7 @@
 
     if (state.history.length === 0) {
       const emptyHistoryMessage = state.connectionType === 'bluetooth'
-        ? 'Bluetooth mode shows live readings only; history is not synced.'
+        ? 'Waiting for saved ESP32 history.'
         : state.connectionType === 'cloud'
           ? 'Waiting for the first Firebase cloud reading.'
           : 'No readings have been saved to the local SQL database yet.';
@@ -649,7 +653,10 @@
         if (!data || typeof data !== 'object') {
           throw new Error('Firebase returned an invalid sensor history response.');
         }
-        const history = Object.values(data).map(validateHistoryRecord);
+        const history = Object.entries(data).map(([key, record]) => ({
+          ...validateHistoryRecord(record),
+          firebaseKey: key,
+        }));
         history.sort((left, right) => {
           const leftTime = left.recordedAt ? Date.parse(left.recordedAt) : 0;
           const rightTime = right.recordedAt ? Date.parse(right.recordedAt) : 0;
@@ -664,7 +671,7 @@
   }
 
   function applyFirebaseStatus(status) {
-    state.connectionType = 'cloud';
+    if (!state.bluetoothCharacteristic) state.connectionType = 'cloud';
     if (status === null) {
       state.connected = true;
       state.sensorOK = false;
@@ -715,16 +722,38 @@
     applyFirebaseStatus(state.firebaseCurrentStatus);
   }
 
-  function renderFirebaseHistory() {
+  function renderFirebaseHistory(cloudUpdated = false) {
+    const recordsBySequence = new Map();
     const history = Array.from(state.firebaseHistoryRecords.values())
       .map(validateHistoryRecord);
-    history.sort((left, right) => {
-      const leftTime = left.recordedAt ? Date.parse(left.recordedAt) : 0;
-      const rightTime = right.recordedAt ? Date.parse(right.recordedAt) : 0;
+    const unsequencedHistory = [];
+    for (const record of history) {
+      if (record.deviceSequence === null) {
+        unsequencedHistory.push(record);
+      } else {
+        recordsBySequence.set(record.deviceSequence, record);
+      }
+    }
+
+    for (const record of state.bluetoothHistory) {
+      if (record.deviceSequence === null) {
+        unsequencedHistory.push(record);
+      } else {
+        const cloudRecord = recordsBySequence.get(record.deviceSequence);
+        recordsBySequence.set(record.deviceSequence, cloudRecord
+          ? { ...cloudRecord, elapsedMs: record.elapsedMs }
+          : record);
+      }
+    }
+
+    const mergedHistory = [...recordsBySequence.values(), ...unsequencedHistory];
+    mergedHistory.sort((left, right) => {
+      const leftTime = left.recordedAt ? Date.parse(left.recordedAt) : left.elapsedMs || 0;
+      const rightTime = right.recordedAt ? Date.parse(right.recordedAt) : right.elapsedMs || 0;
       return rightTime - leftTime;
     });
-    state.history = history.slice(0, 500);
-    state.historyApiState = 'online';
+    state.history = mergedHistory.slice(0, 500);
+    if (cloudUpdated) state.historyApiState = 'online';
     renderHistory();
     renderDiagnostics();
   }
@@ -765,11 +794,12 @@
       }
     }
 
-    renderFirebaseHistory();
+    renderFirebaseHistory(true);
   }
 
   function startFirebaseListeners() {
     if (!IS_FIREBASE_CLOUD_PAGE || typeof EventSource !== 'function') return false;
+    if (state.firebaseListenersStarted) return true;
     try {
       const databaseUrl = new URL(FIREBASE_DATABASE_URL);
       if (databaseUrl.protocol !== 'https:' || databaseUrl.username ||
@@ -829,14 +859,6 @@
       state.historyApiState = value;
     });
     return true;
-  }
-
-  function stopFirebaseListeners() {
-    state.firebaseStatusSource?.close();
-    state.firebaseHistorySource?.close();
-    state.firebaseStatusSource = null;
-    state.firebaseHistorySource = null;
-    state.firebaseListenersStarted = false;
   }
 
   function describeConnectionError(error) {
@@ -978,8 +1000,9 @@
         state.connected = false;
         state.sensorOK = false;
         state.statusApiState = 'error';
-        state.historyApiState = 'waiting';
+        if (!IS_FIREBASE_CLOUD_PAGE) state.historyApiState = 'waiting';
         state.lastError = 'Bluetooth connection to the ESP32 was lost.';
+        if (IS_FIREBASE_CLOUD_PAGE) renderFirebaseHistory();
         renderStatus();
         renderDiagnostics();
         if (IS_FIREBASE_CLOUD_PAGE) {
@@ -1004,11 +1027,13 @@
       state.bluetoothDevice = device;
       state.bluetoothReadyForReconnect = false;
       state.connectionType = 'bluetooth';
-      stopFirebaseListeners();
-      state.history = [];
-      state.historyApiState = state.bluetoothHistoryCharacteristic
-        ? 'checking'
-        : 'not-available';
+      state.bluetoothHistory = [];
+      if (!IS_FIREBASE_CLOUD_PAGE) {
+        state.history = [];
+        state.historyApiState = state.bluetoothHistoryCharacteristic
+          ? 'checking'
+          : 'not-available';
+      }
       state.lastError = '';
       renderHistory();
       await refreshData();
@@ -1039,7 +1064,9 @@
     elements.refreshButton.disabled = true;
     state.lastAttemptAt = new Date();
     state.statusApiState = 'checking';
-    state.historyApiState = state.bluetoothHistoryCharacteristic ? 'checking' : 'error';
+    if (!IS_FIREBASE_CLOUD_PAGE) {
+      state.historyApiState = state.bluetoothHistoryCharacteristic ? 'checking' : 'error';
+    }
     state.lastError = '';
     renderDiagnostics();
     try {
@@ -1053,23 +1080,29 @@
           if (!historyResponse || !Array.isArray(historyResponse.history)) {
             throw new Error('ESP32 returned an invalid Bluetooth history response.');
           }
-          state.history = historyResponse.history.map((record) => {
-            if (!Array.isArray(record) || record.length !== 3) return record;
+          const bluetoothHistory = historyResponse.history.map((record) => {
+            if (!Array.isArray(record) || (record.length !== 3 && record.length !== 4)) return record;
             return {
               temperature: record[0],
               humidity: record[1],
               elapsedMs: typeof record[2] === 'number' ? record[2] * 1000 : null,
+              deviceSequence: Number.isSafeInteger(record[3]) ? record[3] : null,
             };
           }).map(validateHistoryRecord).reverse();
-          state.historyApiState = 'online';
-          renderHistory();
+          state.bluetoothHistory = bluetoothHistory;
+          if (!IS_FIREBASE_CLOUD_PAGE) state.historyApiState = 'online';
+          if (IS_FIREBASE_CLOUD_PAGE) renderFirebaseHistory();
+          else {
+            state.history = bluetoothHistory;
+            renderHistory();
+          }
         } catch (error) {
           console.error('Could not restore sensor history over Bluetooth:', error);
-          state.historyApiState = 'error';
+          if (!IS_FIREBASE_CLOUD_PAGE) state.historyApiState = 'error';
           state.lastError = `Bluetooth history: ${describeConnectionError(error)}`;
         }
       } else {
-        state.historyApiState = 'not-available';
+        if (!IS_FIREBASE_CLOUD_PAGE) state.historyApiState = 'not-available';
       }
     } catch (error) {
       console.error('Could not read sensor status over Bluetooth:', error);
@@ -1159,9 +1192,16 @@
             throw new Error('The ESP32 returned an invalid history response.');
           }
           if (requestedUrl !== state.deviceUrl) return;
-          state.history = history.history.map(validateHistoryRecord);
-          state.historyApiState = 'online';
-          renderHistory();
+          if (IS_FIREBASE_CLOUD_PAGE) {
+            state.firebaseHistoryRecords = new Map(
+              history.history.map((record) => [record.firebaseKey, record]),
+            );
+            renderFirebaseHistory(true);
+          } else {
+            state.history = history.history.map(validateHistoryRecord);
+            state.historyApiState = 'online';
+            renderHistory();
+          }
         } catch (error) {
           console.error('Could not load sensor history:', error);
           state.historyApiState = 'error';
@@ -1252,7 +1292,9 @@
     refreshData();
     state.timer = window.setInterval(
       () => {
-        if (state.firebaseListenersStarted) {
+        if (state.bluetoothCharacteristic) {
+          refreshData();
+        } else if (state.firebaseListenersStarted) {
           renderStatus();
           renderReadings();
         } else {

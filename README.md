@@ -119,6 +119,14 @@ the configured device identity, and all other database paths remain locked.
 The device identity password is stored only in the ignored local
 `wifi_secrets.h` file.
 
+The firmware also assigns stable sequence numbers to its locally saved sensor
+records. When internet-capable router Wi-Fi is available, it securely uploads
+any saved records not yet sent to the same Firebase history ring. The ESP32
+keeps at most 10 local records while offline; records older than that local
+buffer cannot be recovered. Backfilled records receive Firebase server time
+when uploaded because the ESP32 does not retain an absolute timestamp for its
+offline records.
+
 To set up or restore the firmware:
 
 1. Copy `firmware/sketch_oct26a/wifi_secrets.example.h` to
@@ -152,8 +160,10 @@ not available from the public cloud dashboard.
 The ESP32-S3 firmware also advertises a Bluetooth Low Energy (BLE) service.
 On an Android phone, open the GitHub Pages dashboard in Chrome over HTTPS, tap
 **Connect ESP32 via Bluetooth**, and choose **PoultryMonitor**. Chrome reads the
-live sensor status directly from the ESP32 every three seconds and restores the
-saved sensor history from the monitor's Bluetooth history characteristic. The
+live sensor status and refreshes the saved sensor history directly from the
+ESP32 every three seconds using its Bluetooth characteristics. New device
+history records appear while connected and remain available from the ESP32's
+saved history after disconnecting and reconnecting. The
 phone can keep mobile data enabled while its Wi-Fi and hotspot are off;
 Bluetooth mode does not require the phone to join an ESP32 or router Wi-Fi
 network.
@@ -163,9 +173,13 @@ tap **Connect ESP32 via Bluetooth** and select **PoultryMonitor**; browsers
 require this tap before showing the Bluetooth device chooser.
 
 Bluetooth mode displays history currently stored by the ESP32, but does not
-upload new readings to Firebase while the ESP32 has no internet connection. If
-the page was not installed or cached already, mobile data is needed to load
-GitHub Pages.
+write new readings to Firebase by itself. The GitHub Pages dashboard keeps its
+Firebase live history connected during Bluetooth use and combines it with the
+ESP32's local BLE history, deduplicating records by their device sequence
+number. Firebase syncing requires the ESP32 itself to have internet-capable
+router Wi-Fi; records saved while it is offline are backfilled after Wi-Fi
+returns. Bluetooth remains available without that Wi-Fi. If the page was not
+installed or cached already, mobile data is needed to load GitHub Pages.
 Use Android Chrome over HTTPS; the browser-hosted Bluetooth connection is not
 available from the ESP32's plain-HTTP dashboard or Safari on iPhone.
 
