@@ -1041,10 +1041,7 @@ void updateBleSensorStatus() {
 
   String payload;
   serializeJson(doc, payload);
-  bleStatusCharacteristic->setValue(
-    reinterpret_cast<const uint8_t*>(payload.c_str()),
-    payload.length()
-  );
+  bleStatusCharacteristic->setValue(payload);
 }
 
 void startBluetoothService() {
