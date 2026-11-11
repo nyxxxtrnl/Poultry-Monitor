@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'poultry-monitor-shell-v5';
+const CACHE_NAME = 'poultry-monitor-shell-v6';
 const APP_SHELL = [
   './',
   './index.html',

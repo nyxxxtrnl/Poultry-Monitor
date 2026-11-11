@@ -121,10 +121,10 @@
         </section>
 
         <section class="page-panel" id="page-history" data-page-panel="history" hidden>
-          <div class="section-intro history-heading"><div><p class="eyebrow">SAVED IN LOCAL SQL</p><h2>Sensor history</h2><p class="section-description">Readings saved by the local dashboard server, with the time they were received.</p></div><span class="record-count" id="record-count">0 <small>records</small></span></div>
-          <article class="panel chart-panel"><div class="panel-heading"><div><p class="eyebrow">TEMPERATURE SNAPSHOT</p><h3>Recent temperature trend</h3></div><span class="chart-unit">°C</span></div><div class="bar-chart" id="history-chart"><div class="chart-empty">The chart appears after sensor readings are saved in the local SQL database.</div></div><div class="chart-legend"><span><i></i>Temperature</span><span>Latest SQL records</span></div></article>
+          <div class="section-intro history-heading"><div><p class="eyebrow" id="history-source-label">SAVED IN LOCAL SQL</p><h2>Sensor history</h2><p class="section-description" id="history-source-description">Readings saved by the local dashboard server, with the time they were received.</p></div><span class="record-count" id="record-count">0 <small>records</small></span></div>
+          <article class="panel chart-panel"><div class="panel-heading"><div><p class="eyebrow">TEMPERATURE SNAPSHOT</p><h3>Recent temperature trend</h3></div><span class="chart-unit">°C</span></div><div class="bar-chart" id="history-chart"><div class="chart-empty">The chart appears after sensor readings are saved.</div></div><div class="chart-legend"><span><i></i>Temperature</span><span id="history-chart-label">Latest SQL records</span></div></article>
           <article class="panel history-panel"><div class="panel-heading"><div><p class="eyebrow">ALL READINGS</p><h3>History log</h3></div><span class="table-refresh">Updates with sensor refresh</span></div><div class="history-list" id="history-list"><div class="empty-state">No history records available.</div></div></article>
-          <div class="history-disclaimer"><span class="note-mark">i</span> Records are stored on the computer running this dashboard server. They are separate from the ESP32’s own history.</div>
+          <div class="history-disclaimer"><span class="note-mark">i</span><span id="history-disclaimer-text">Records are stored on the computer running this dashboard server. They are separate from the ESP32’s own history.</span></div>
         </section>
 
         <section class="page-panel settings-panel" id="page-settings" data-page-panel="settings" hidden>

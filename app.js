@@ -58,6 +58,10 @@
     recentList: $('#recent-list'),
     historyList: $('#history-list'),
     historyChart: $('#history-chart'),
+    historySourceLabel: $('#history-source-label'),
+    historySourceDescription: $('#history-source-description'),
+    historyChartLabel: $('#history-chart-label'),
+    historyDisclaimerText: $('#history-disclaimer-text'),
     recordCount: $('#record-count'),
     deviceUrlInput: $('#device-url'),
     settingsForm: $('#settings-form'),
@@ -566,6 +570,29 @@
   function renderHistory() {
     elements.recentList.replaceChildren();
     elements.historyList.replaceChildren();
+
+    const isBluetooth = state.connectionType === 'bluetooth';
+    const historySource = isBluetooth
+      ? IS_FIREBASE_CLOUD_PAGE ? 'ESP32 + FIREBASE' : 'SAVED ON ESP32'
+      : IS_FIREBASE_CLOUD_PAGE ? 'SAVED IN FIREBASE' : 'SAVED IN LOCAL SQL';
+    elements.historySourceLabel.textContent = historySource;
+    elements.historySourceDescription.textContent = isBluetooth
+      ? IS_FIREBASE_CLOUD_PAGE
+        ? 'Saved readings from the ESP32 and Firebase. ESP32 history refreshes while Bluetooth is connected.'
+        : 'Saved readings from the ESP32. History refreshes while Bluetooth is connected.'
+      : IS_FIREBASE_CLOUD_PAGE
+        ? 'Sensor readings uploaded by your monitor and saved in Firebase.'
+        : 'Readings saved by the local dashboard server, with the time they were received.';
+    elements.historyChartLabel.textContent = isBluetooth
+      ? IS_FIREBASE_CLOUD_PAGE ? 'Latest ESP32 and Firebase records' : 'Latest ESP32 records'
+      : IS_FIREBASE_CLOUD_PAGE ? 'Latest Firebase records' : 'Latest SQL records';
+    elements.historyDisclaimerText.textContent = isBluetooth
+      ? IS_FIREBASE_CLOUD_PAGE
+        ? 'The ESP32 saves the latest 10 readings locally. Firebase history syncs when the monitor has internet.'
+        : 'The ESP32 saves the latest 10 sensor readings and restores them here over Bluetooth.'
+      : IS_FIREBASE_CLOUD_PAGE
+        ? 'Cloud history is stored in Firebase. Bluetooth-only readings are available while connected.'
+        : 'Records are stored on the computer running this dashboard server. They are separate from the ESP32’s own history.';
 
     if (state.history.length === 0) {
       const emptyHistoryMessage = state.connectionType === 'bluetooth'
