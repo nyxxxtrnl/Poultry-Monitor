@@ -144,6 +144,11 @@ provided for this setup. To activate the API:
 6. Compile and upload the sketch to the ESP32-S3. Push dashboard changes to
    `main` and wait for the Pages deployment to succeed.
 
+If Arduino reports that the sketch exceeds the default 1.2MB app partition,
+open **Tools → Partition Scheme** and select **Huge APP (3MB No OTA/1MB SPIFFS)**
+before compiling. This provides a 3MB app partition for the dashboard assets;
+it disables OTA firmware updates, so upload over USB.
+
 The GitHub Pages dashboard reads the latest public status and up to 500 public
 history records from the Edge Function. Only sensor measurements, warning
 state, and timestamps are exposed; the database service-role key stays on
